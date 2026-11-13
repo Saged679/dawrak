@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دورك | حجز المواعيد لعيادتك بهدوء</title>
+<meta name="description" content="دورك نظام حجز مواعيد عربي للعيادات والصالونات، مع مساعد ذكي يحجز عن مرضاك على مدار الساعة.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">تخطَّ إلى المحتوى</a>
+
+<header class="top">
+  <div class="wrap top__in">
+    <a class="brand" href="#" aria-label="دورك، الصفحة الرئيسية">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <span class="brand__name">دورك</span>
+    </a>
+    <nav class="nav" aria-label="التنقل الرئيسي">
+      <a href="#how">كيف يعمل</a>
+      <a href="#chat">المساعد</a>
+      <a href="#dash">لوحة التحكم</a>
+    </nav>
+    <a class="btn btn--sm" href="#demo">جرّب العرض</a>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero__grid">
+    <div class="hero__copy">
+      <p class="kicker">لعيادات الأسنان والجلدية والعيون وغيرها</p>
+      <h1>مرضاك يحجزون، وعيادتك تبقى هادئة.</h1>
+      <p class="lead">يختار المريض الخدمة والطبيب والوقت في دقيقة، أو يكتب للمساعد الذكي فيحجز له. وأنت ترى كل موعد في تقويم واحد واضح، دون اتصالات ولا دفتر ورقي.</p>
+      <div class="hero__cta">
+        <a class="btn" href="#demo">جرّب العرض المباشر</a>
+        <a class="btn btn--ghost" href="#how">شاهد كيف يعمل</a>
+      </div>
+      <p class="fine">مجاني للتجربة. لا حاجة لبطاقة بنكية.</p>
+    </div>
+
+    <!-- The bold move: a real appointment slip with a tear-off stub -->
+    <div class="slipwrap">
+      <article class="slip" aria-label="بطاقة موعد تجريبية">
+        <div class="slip__body">
+          <p class="slip__clinic">عيادة نخبة الرعاية للأسنان</p>
+          <p class="slip__city">الرياض، حي الملقا</p>
+          <dl class="slip__rows">
+            <div><dt>المريض</dt><dd>سلمان بن عبدالله العتيبي</dd></div>
+            <div><dt>الطبيب</dt><dd>د. ريم الحربي</dd></div>
+            <div><dt>الخدمة</dt><dd>تنظيف وتلميع الأسنان</dd></div>
+            <div><dt>التاريخ</dt><dd><span id="slipDate">الأحد ١٥ نوفمبر ٢٠٢٦</span><br><span class="hijri">٤ جمادى الآخرة ١٤٤٨ هـ</span></dd></div>
+            <div><dt>الوقت</dt><dd class="slip__time" id="slipTime">٤:٣٠ مساءً</dd></div>
+          </dl>
+          <p class="slip__note">يُرجى الحضور قبل الموعد بعشر دقائق.</p>
+        </div>
+        <div class="slip__stub" aria-hidden="false">
+          <p class="stub__label">دورك رقم</p>
+          <p class="stub__num" id="slipNum">١٢</p>
+          <p class="stub__ok"><span class="tick" aria-hidden="true"></span>مؤكَّد</p>
+        </div>
+      </article>
+
+      <div class="picker" role="group" aria-labelledby="pickLabel">
+        <p id="pickLabel" class="picker__label">غيّر الوقت وانظر إلى البطاقة تتبدّل:</p>
+        <div class="picker__slots">
+          <button type="button" class="slot" data-time="١٠:٠٠ صباحًا" data-num="٣" aria-pressed="false">١٠:٠٠ ص</button>
+          <button type="button" class="slot" data-time="١١:٣٠ صباحًا" data-num="٧" aria-pressed="false">١١:٣٠ ص</button>
+          <button type="button" class="slot is-on" data-time="٤:٣٠ مساءً" data-num="١٢" aria-pressed="true">٤:٣٠ م</button>
+          <button type="button" class="slot" data-time="٦:٠٠ مساءً" data-num="١٥" aria-pressed="false">٦:٠٠ م</button>
+          <button type="button" class="slot is-off" disabled>٥:١٥ م</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section class="sec" id="how">
+  <div class="wrap">
+    <div class="sec__head">
+      <h2>ثلاث خطوات، ولا اتصال هاتفي.</h2>
+      <p>من فتح الرابط إلى تأكيد الموعد على الواتساب والرسائل.</p>
+    </div>
+
+    <ol class="steps">
+      <li class="step">
+        <div class="step__n" aria-hidden="true">١</div>
+        <div class="step__t">
+          <h3>يختار الخدمة والطبيب</h3>
+          <p>الأسعار ومدة الجلسة ظاهرة قبل الحجز، فلا مفاجآت عند الاستقبال.</p>
+        </div>
+        <div class="mock mock--svc" aria-label="مثال: اختيار الخدمة">
+          <div class="svc is-on"><span>تنظيف وتلميع</span><b>١٥٠ ر.س</b></div>
+          <div class="svc"><span>حشو تجميلي</span><b>٣٥٠ ر.س</b></div>
+          <div class="svc"><span>تبييض الأسنان</span><b>٩٠٠ ر.س</b></div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__n" aria-hidden="true">٢</div>
+        <div class="step__t">
+          <h3>يرى الأوقات المتاحة فقط</h3>
+          <p>التقويم يعرف إجازة الطبيب وأوقات الصلاة وما حُجز بالفعل.</p>
+        </div>
+        <div class="mock mock--cal" aria-label="مثال: اختيار اليوم">
+          <p class="cal__t">نوفمبر ٢٠٢٦ <span class="hijri">جمادى الآخرة ١٤٤٨</span></p>
+          <ul class="cal__days">
+            <li>سبت<b>١٤</b></li>
+            <li class="is-on">أحد<b>١٥</b></li>
+            <li>اثنين<b>١٦</b></li>
+            <li>ثلاثاء<b>١٧</b></li>
+            <li class="is-off">أربعاء<b>١٨</b></li>
+          </ul>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__n" aria-hidden="true">٣</div>
+        <div class="step__t">
+          <h3>تصله بطاقة الموعد</h3>
+          <p>رسالة بالتاريخ الميلادي والهجري، وتذكير قبل الموعد بيوم وبساعتين.</p>
+        </div>
+        <div class="mock mock--sms" aria-label="مثال: رسالة التأكيد">
+          <p>تم تأكيد موعدك مع د. ريم الحربي يوم الأحد ١٥ نوفمبر، ٤:٣٠ مساءً. دورك رقم ١٢.</p>
+          <span class="sms__t">الآن</span>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- CHAT -->
+<section class="sec sec--glass" id="chat">
+  <div class="wrap chat__grid">
+    <div class="sec__head sec__head--side">
+      <h2>مساعد يحجز عن مرضاك، حتى بعد إغلاق العيادة.</h2>
+      <p>يفهم العربية الفصحى واللهجة السعودية والمصرية. يسأل عمّا ينقصه، ويعرض أقرب وقت مناسب، ولا يحجز إلا ما هو متاح في تقويمك.</p>
+      <ul class="ticks">
+        <li>يعمل على الواتساب وصفحتك على الإنترنت</li>
+        <li>يحوّل الحالات الطارئة إلى موظف الاستقبال</li>
+        <li>يتذكّر المريض ويقترح موعده المعتاد</li>
+      </ul>
+    </div>
+
+    <div class="phone" role="img" aria-label="محادثة تجريبية بين مريضة والمساعد الذكي">
+      <div class="phone__bar"><span class="dotlive"></span>مساعد عيادة الشفاء <small>متصل</small></div>
+      <div class="msgs">
+        <p class="m m--in">السلام عليكم، عايزة أحجز كشف جلدية بكرة لو في مكان.</p>
+        <p class="m m--out">وعليكم السلام أستاذة منى. بكرة الاثنين ١٦ نوفمبر عند د. هبة السيد متاح ١٠:٠٠ ص و١:٣٠ م و٥:٠٠ م. أيها يناسبك؟</p>
+        <p class="m m--in">الواحدة والنصف.</p>
+        <p class="m m--out">تمام. حجزت لك كشف جلدية عند د. هبة، الاثنين ١٦ نوفمبر (٥ جمادى الآخرة) الساعة ١:٣٠ م. سأرسل لك التفاصيل الآن.</p>
+        <div class="m m--card">
+          <b>تم الحجز</b>
+          <span>الاثنين ١٦ نوفمبر ٢٠٢٦ · ١:٣٠ م</span>
+          <span>دورك رقم ٦</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="sec" id="dash">
+  <div class="wrap">
+    <div class="sec__head">
+      <h2>يومك كله في شاشة واحدة.</h2>
+      <p>من يصل الآن، ومن ينتظر، وأي كرسي فارغ. دون جداول إكسل.</p>
+    </div>
+
+    <div class="dash" role="img" aria-label="معاينة لوحة تحكم العيادة: مواعيد اليوم وأرقام الأسبوع">
+      <aside class="dash__side">
+        <p class="dash__clinic">عيادة نخبة الرعاية</p>
+        <ul>
+          <li class="is-on">مواعيد اليوم</li>
+          <li>التقويم</li>
+          <li>الأطباء</li>
+          <li>الخدمات</li>
+          <li>المحادثات <i>٣</i></li>
+        </ul>
+      </aside>
+
+      <div class="dash__main">
+        <div class="dash__top">
+          <div>
+            <p class="dash__date">الأحد ١٥ نوفمبر ٢٠٢٦</p>
+            <p class="hijri">٤ جمادى الآخرة ١٤٤٨ هـ</p>
+          </div>
+          <div class="kpis">
+            <p><b>١٨</b>موعدًا اليوم</p>
+            <p><b>٩٢٪</b>نسبة الحضور</p>
+            <p><b>٤</b>حجوزات من المساعد</p>
+          </div>
+        </div>
+
+        <div class="agenda">
+          <div class="row row--done"><time>٩:٠٠</time><span class="who">فهد الدوسري</span><span class="what">كشف عام · د. ريم</span><em>اكتمل</em></div>
+          <div class="row row--now"><time>٩:٣٠</time><span class="who">نورة القحطاني</span><span class="what">تقويم أسنان · د. خالد</span><em>في العيادة الآن</em></div>
+          <div class="row"><time>١٠:٠٠</time><span class="who">أحمد عبدالعزيز</span><span class="what">حشو تجميلي · د. ريم</span><em>ينتظر</em></div>
+          <div class="row"><time>١٠:٣٠</time><span class="who">هالة مصطفى</span><span class="what">تنظيف وتلميع · د. ريم</span><em>مؤكَّد</em></div>
+          <div class="row row--free"><time>١١:٠٠</time><span class="who">وقت فارغ</span><span class="what">د. خالد</span><em>متاح للحجز</em></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO CTA -->
+<section class="demo" id="demo">
+  <div class="wrap demo__in">
+    <h2>جرّب دورك بعيادة افتراضية الآن.</h2>
+    <p>نجهّز لك عيادة تجريبية فيها أطباء وخدمات ومواعيد. احجز كمريض، ثم افتح لوحة التحكم كصاحب العيادة.</p>
+    <div class="hero__cta">
+      <a class="btn btn--light" href="#">ابدأ العرض المباشر</a>
+      <a class="btn btn--ghost-light" href="#chat">جرّب المساعد أولًا</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <div>
+      <a class="brand brand--foot" href="#"><span class="brand__mark" aria-hidden="true"></span><span class="brand__name">دورك</span></a>
+      <p>نظام حجز عربي للعيادات والصالونات.</p>
+    </div>
+    <nav aria-label="روابط التذييل">
+      <a href="#how">كيف يعمل</a>
+      <a href="#chat">المساعد الذكي</a>
+      <a href="#dash">لوحة التحكم</a>
+      <a href="#demo">العرض المباشر</a>
+    </nav>
+    <p class="foot__c">مشروع عرض تجريبي. الأسماء والعيادات المذكورة خيالية.</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

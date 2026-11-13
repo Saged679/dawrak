@@ -1,0 +1,168 @@
+import type { LanguageModel } from "ai";
+import { getClientIp } from "@/lib/db/client-ip";
+import { ChannelError, type ChannelAdapter } from "@/lib/channels/types";
+import { webChannel } from "@/lib/channels/web";
+import { getOrCreateConversation, loadHistory, saveMessage } from "./conversation";
+import { createAgentDb } from "./db";
+import { checkAudioIpLimit, checkAudioTenantLimit, checkIpLimit, checkTenantLimit } from "./rate-limit";
+import { createAfterBooking, type SendBookingEmail } from "./booking-mail";
+import { e2eMockEnabled } from "./mock-gate";
+import { runAgent } from "./run-agent";
+import {
+  demoSessionSetCookie,
+  hashDemoSession,
+  newDemoSessionValue,
+  readDemoSessionFromHeader,
+} from "@/lib/demo/session";
+import type { AgentDb } from "./types";
+
+export type ChatDeps = {
+  db?: AgentDb;
+  model?: LanguageModel;
+  embedQuery?: (text: string) => Promise<number[]>;
+  channel?: ChannelAdapter<Request, Response>;
+  /** Replaces the booking confirmation mailer (tests). */
+  sendBookingEmail?: SendBookingEmail;
+};
+
+/** Text stored in messages.content for a voice turn (also what later turns see as history). */
+export function voiceNoteLabel(durationSeconds?: number | null): string {
+  return durationSeconds == null ? "[voice note]" : `[voice note, ${Math.max(1, Math.round(durationSeconds))} s]`;
+}
+
+export function errorResponse(
+  status: number,
+  code: string,
+  message: string,
+  extra: { retryAfterSeconds?: number } = {},
+) {
+  return Response.json(
+    { error: { code, message, ...extra } },
+    { status, headers: extra.retryAfterSeconds ? { "Retry-After": String(extra.retryAfterSeconds) } : undefined },
+  );
+}
+
+/**
+ * Web chat pipeline: IP rate limit -> parse/validate -> resolve tenant -> tenant daily limit ->
+ * persist -> model. The model is never reached when a limit or validation fails.
+ */
+export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Response> {
+  const channel = deps.channel ?? webChannel;
+
+  let db: AgentDb;
+  try {
+    db = deps.db ?? createAgentDb();
+  } catch {
+    return errorResponse(503, "not_configured", "The assistant is not configured yet.");
+  }
+  const model = deps.model ?? (e2eMockEnabled(req.headers) ? await (await import("./mock-model")).mockChatModel(req) : null) ?? undefined;
+  if (!model && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return errorResponse(503, "not_configured", "The assistant is not configured yet.");
+  }
+
+  try {
+    const ipLimit = await checkIpLimit(db, getClientIp(req.headers));
+    if (!ipLimit.ok) {
+      return errorResponse(429, "rate_limited", "Too many messages. Please wait a few minutes and try again.", {
+        retryAfterSeconds: ipLimit.retryAfterSeconds,
+      });
+    }
+
+    const inbound = await channel.parseInbound(req);
+    if (!("slug" in inbound.tenant)) throw new ChannelError("invalid_request", "Invalid request.");
+
+    const { data: rows, error: tErr } = await db.rpc("public_get_tenant", { p_slug: inbound.tenant.slug });
+    if (tErr) throw tErr;
+    const tenant = (rows as { id: string; slug?: string; is_demo?: boolean }[] | null)?.[0];
+    if (!tenant) return errorResponse(404, "tenant_not_found", "Business not found.");
+
+    const tenantLimit = await checkTenantLimit(db, tenant.id);
+    if (!tenantLimit.ok) {
+      return errorResponse(429, "tenant_daily_limit", "This assistant has reached its daily limit. Please try again tomorrow.", {
+        retryAfterSeconds: tenantLimit.retryAfterSeconds,
+      });
+    }
+
+    if (inbound.message.type === "audio") {
+      const aIp = await checkAudioIpLimit(db, getClientIp(req.headers));
+      if (!aIp.ok) {
+        return errorResponse(429, "audio_rate_limited", "Too many voice notes. Please type your message or wait a few minutes.", {
+          retryAfterSeconds: aIp.retryAfterSeconds,
+        });
+      }
+      const aTenant = await checkAudioTenantLimit(db, tenant.id);
+      if (!aTenant.ok) {
+        return errorResponse(429, "audio_daily_limit", "Voice notes have reached the daily limit. Please type your message.", {
+          retryAfterSeconds: aTenant.retryAfterSeconds,
+        });
+      }
+    }
+
+    // Demo tenant: the visitor's httpOnly random session (same cookie as the web booking form). It is
+    // created here, before the stream starts, because headers cannot change once it has. Only its
+    // SHA-256 reaches the database; the model never sees any of it.
+    const isDemo = tenant.is_demo === true;
+    let sessionHash: string | null = null;
+    let newCookie: string | null = null;
+    if (isDemo) {
+      let raw = readDemoSessionFromHeader(req.headers.get("cookie"));
+      if (!raw) {
+        raw = newDemoSessionValue();
+        newCookie = demoSessionSetCookie(raw);
+      }
+      sessionHash = hashDemoSession(raw);
+    }
+    const afterBooking = createAfterBooking({
+      db,
+      tenant: { id: tenant.id, slug: inbound.tenant.slug, is_demo: isDemo },
+      locale: inbound.locale,
+      sessionHash,
+      send: deps.sendBookingEmail,
+    });
+
+    const conversationId = await getOrCreateConversation(db, {
+      tenantId: tenant.id,
+      channel: "web",
+      conversationId: inbound.conversationId,
+    });
+    const history = await loadHistory(db, tenant.id, conversationId);
+    await saveMessage(db, {
+      tenantId: tenant.id,
+      conversationId,
+      role: "user",
+      // Only a placeholder and metadata are stored, never the audio itself.
+      content: inbound.message.type === "text" ? inbound.message.text : voiceNoteLabel(inbound.message.durationSeconds),
+      parts:
+        inbound.message.type === "audio"
+          ? {
+              type: "audio",
+              mediaType: inbound.message.mediaType,
+              durationSeconds:
+                inbound.message.durationSeconds == null ? null : Math.max(1, Math.round(inbound.message.durationSeconds)),
+            }
+          : null,
+    });
+
+    const result = await runAgent({
+      tenantId: tenant.id,
+      conversationId,
+      message: inbound.message,
+      locale: inbound.locale,
+      history,
+      onReply: async (text) => {
+        if (text.trim()) await saveMessage(db, { tenantId: tenant.id, conversationId, role: "assistant", content: text });
+      },
+      afterBooking,
+      deps: { db, model, embedQuery: deps.embedQuery },
+    });
+    const res = await channel.respond(result, { conversationId });
+    if (!newCookie) return res;
+    const headers = new Headers(res.headers);
+    headers.append("set-cookie", newCookie);
+    return new Response(res.body, { status: res.status, headers });
+  } catch (e) {
+    if (e instanceof ChannelError) return errorResponse(e.status, e.code, e.message);
+    console.error("chat_error", e instanceof Error ? e.message : e);
+    return errorResponse(500, "internal_error", "Something went wrong. Please try again.");
+  }
+}

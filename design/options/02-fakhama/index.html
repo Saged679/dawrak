@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>دورك | حجز المواعيد للعيادات والصالونات</title>
+<meta name="description" content="دورك يتيح لعيادتك أو صالونك استقبال الحجوزات على مدار الساعة، ومساعد ذكي يحجز عنك بالعربية.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">تخطَّ إلى المحتوى</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#">دورك</a>
+    <nav aria-label="القائمة الرئيسية">
+      <a href="#how">كيف يعمل</a>
+      <a href="#chat">المساعد الذكي</a>
+      <a href="#dash">لوحة التحكم</a>
+    </nav>
+    <a class="lang" href="#" lang="en" dir="ltr">English</a>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" aria-labelledby="h1">
+  <div class="wrap">
+    <div>
+      <h1 id="h1">مواعيدكم<em>بحجز يليق بكم</em></h1>
+      <p>دورك نظام حجوزات لعيادتك أو صالونك. العميل يختار الخدمة والطبيب والوقت، أو يكتب لمساعد ذكي يحجز له بالعربية في دقيقة.</p>
+      <div class="actions">
+        <a class="btn btn-brass" href="#demo">جرّب العرض الحي</a>
+        <a class="btn btn-line" href="#how">شاهد كيف يعمل</a>
+      </div>
+      <small>مجاني للتجربة. لا حاجة لبطاقة بنكية.</small>
+    </div>
+
+    <div class="mock" role="group" aria-label="نموذج واجهة الحجز">
+      <div class="mock-h"><strong>عيادات لؤلؤة للأسنان</strong><span>الرياض، حي الياسمين</span></div>
+      <div class="mock-b">
+        <div class="field"><span class="lbl">الخدمة</span>
+          <div class="pick"><b>تنظيف وتلميع الأسنان</b><i><span class="num">250</span> ر.س</i></div></div>
+        <div class="field"><span class="lbl">الطبيبة</span>
+          <div class="pick"><b>د. ريم القحطاني</b><i>أخصائية لثة</i></div></div>
+        <div class="date"><span class="lbl">التاريخ</span>
+          الأحد <span class="num">15 نوفمبر 2026</span>
+          <small>الموافق 5 جمادى الآخرة 1448 هـ</small></div>
+        <div>
+          <span class="lbl" id="slot-l">الأوقات المتاحة</span>
+          <div class="slots" role="group" aria-labelledby="slot-l">
+            <button class="slot" disabled><span class="num">9:00</span> ص</button>
+            <button class="slot" aria-pressed="false"><span class="num">9:30</span> ص</button>
+            <button class="slot" aria-pressed="false"><span class="num">10:30</span> ص</button>
+            <button class="slot" aria-pressed="true"><span class="num">11:00</span> ص</button>
+            <button class="slot" aria-pressed="false"><span class="num">4:00</span> م</button>
+            <button class="slot" aria-pressed="false"><span class="num">5:30</span> م</button>
+          </div>
+        </div>
+        <button class="btn btn-dark" type="button">تأكيد الحجز</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how" aria-labelledby="how-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 id="how-h">ثلاث خطوات، ويصل الموعد إلى جوال العميل</h2>
+    </div>
+    <ol class="steps">
+      <li><span class="n" aria-hidden="true"><b>١</b></span>
+        <div><h3>يختار ما يناسبه</h3>
+        <p>الخدمة، ثم الطبيب أو المصففة، ثم أي وقت فارغ فعلًا في جدولهم. لا اتصالات ولا انتظار رد.</p></div></li>
+      <li><span class="n" aria-hidden="true"><b>٢</b></span>
+        <div><h3>يصله تأكيد فوري</h3>
+        <p>رسالة بالموعد والعنوان على واتساب، مع التاريخ الميلادي والهجري، وتذكير قبل الموعد بساعتين.</p></div></li>
+      <li><span class="n" aria-hidden="true"><b>٣</b></span>
+        <div><h3>تستقبله وهو جاهز</h3>
+        <p>يظهر الموعد في جدولك مع بيانات العميل وتاريخ زياراته، فتبدأ الجلسة دون أسئلة متكررة.</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<section id="chat" class="chat-sec" aria-labelledby="chat-h">
+  <div class="wrap chat-grid">
+    <div>
+      <h2 id="chat-h">عميلك يكتب كما يتكلم، والمساعد يحجز</h2>
+      <p class="lead">يفهم الفصحى واللهجة الخليجية والمصرية، ويقترح أقرب وقت متاح ويؤكده. وإذا احتاج الأمر موظفًا، يحوّل المحادثة إليك بكامل سياقها.</p>
+      <ul class="points">
+        <li>يرد في أي ساعة، حتى بعد إغلاق الاستقبال</li>
+        <li>لا يحجز إلا في الأوقات الفارغة في جدولك</li>
+        <li>يسأل عن الحساسية أو الملاحظات قبل الجلسة</li>
+      </ul>
+    </div>
+
+    <div class="phone" role="group" aria-label="نموذج محادثة">
+      <div class="phone-h"><span class="avatar" aria-hidden="true">د</span>
+        <div>مساعد دورك<small>صالون ليالي، دبي</small></div></div>
+      <div class="msgs">
+        <div class="m me">مساء الخير، أبغى موعد صبغة وقص هالأسبوع<time>٧:٤٢ م</time></div>
+        <div class="m bot">أهلًا بك يا نورة. عند المصففة هند أقرب موعد الخميس الساعة <span class="num">2:00</span> ظهرًا، يناسبك؟<time>٧:٤٢ م</time></div>
+        <div class="m me">الخميس زين، بس أبغى بعد المغرب إذا ممكن<time>٧:٤٣ م</time></div>
+        <div class="m bot">متاح الخميس <span class="num">6:30</span> مساءً. أحجزه لك؟<time>٧:٤٣ م</time></div>
+        <div class="m me">أيوه احجزه<time>٧:٤٤ م</time></div>
+        <div class="confirm"><b>تم الحجز</b>
+          <div>صبغة وقص مع هند<br>الخميس <span class="num">19 نوفمبر 2026</span> · 10 جمادى الآخرة 1448 هـ<br>الساعة <span class="num">6:30</span> مساءً</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="dash" aria-labelledby="dash-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2 id="dash-h">يومك كله في شاشة واحدة</h2>
+      <p class="lead">الجدول والفريق والخدمات والمحادثات، بأرقام تقرؤها بنظرة.</p>
+    </div>
+
+    <div class="dash" role="group" aria-label="نموذج لوحة التحكم">
+      <aside class="side" aria-label="قائمة اللوحة">
+        <span class="logo">دورك</span>
+        <a href="#dash" aria-current="page">الجدول</a>
+        <a href="#dash">العملاء</a>
+        <a href="#dash">الفريق</a>
+        <a href="#dash">الخدمات</a>
+        <a href="#dash">المحادثات</a>
+        <a href="#dash">التقارير</a>
+      </aside>
+      <div class="main">
+        <div class="main-h"><h3>جدول اليوم</h3>
+          <span>الأحد <span class="num">15 نوفمبر 2026</span> · 5 جمادى الآخرة 1448 هـ</span></div>
+        <div class="kpis">
+          <div><b class="num">18</b><span>موعدًا اليوم</span></div>
+          <div><b class="num">4</b><span>حُجزت عبر المساعد</span></div>
+          <div><b class="num">92%</b><span>نسبة الحضور</span></div>
+          <div><b class="num">6,450</b><span>ر.س إيراد متوقع</span></div>
+        </div>
+        <div class="scroll-x">
+        <table class="sched">
+          <caption class="sr">مواعيد اليوم</caption>
+          <thead><tr><th scope="col">الوقت</th><th scope="col">العميل</th><th scope="col">الخدمة</th><th scope="col">الطبيب</th><th scope="col">الحالة</th></tr></thead>
+          <tbody>
+            <tr><td><span class="num">9:30</span> ص</td><td>محمد العتيبي</td><td>كشف وفحص</td><td>د. سلطان الدوسري</td><td><span class="tag ok">حضر</span></td></tr>
+            <tr><td><span class="num">10:30</span> ص</td><td>سارة الشهري</td><td>تبييض الأسنان</td><td>د. ريم القحطاني</td><td><span class="tag ai">عبر المساعد</span></td></tr>
+            <tr><td><span class="num">11:00</span> ص</td><td>أحمد عبد الرحمن</td><td>تنظيف وتلميع</td><td>د. ريم القحطاني</td><td><span class="tag">مؤكد</span></td></tr>
+            <tr><td><span class="num">12:15</span> م</td><td>منى الحربي</td><td>تقويم، متابعة</td><td>د. سلطان الدوسري</td><td><span class="tag">مؤكد</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-notes">
+      <div><h3>جدول لا يتعارض</h3><p>الموعد لا يُحجز مرتين، ولكل طبيب ساعات عمله وإجازاته.</p></div>
+      <div><h3>سجل لكل عميل</h3><p>زياراته السابقة وملاحظاتك عليه، أمامك عند وصوله.</p></div>
+      <div><h3>أرقام تفيد القرار</h3><p>أكثر الخدمات طلبًا، وأوقات الذروة، ونسبة الغياب.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="cta" aria-labelledby="cta-h">
+  <div class="wrap">
+    <h2 id="cta-h">جرّب دورك بعيادتك أنت</h2>
+    <p>نجهّز لك عرضًا حيًّا باسم عيادتك وخدماتك. احجز موعدًا تجريبيًا بنفسك، وتحدّث مع المساعد، وشاهد اللوحة.</p>
+    <a class="btn btn-brass" href="#">افتح العرض الحي</a>
+    <small>مجانًا، ويعمل من الجوال والحاسوب.</small>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div><a class="logo" href="#">دورك</a><p>حجز المواعيد للعيادات والصالونات في الرياض ودبي والدوحة والقاهرة.</p></div>
+      <div><h3>المنتج</h3><ul><li><a href="#how">كيف يعمل</a></li><li><a href="#chat">المساعد الذكي</a></li><li><a href="#dash">لوحة التحكم</a></li></ul></div>
+      <div><h3>تواصل</h3><ul><li><a href="#demo">اطلب العرض الحي</a></li><li><a href="#">الخصوصية</a></li><li><a href="#">الشروط</a></li></ul></div>
+    </div>
+    <p class="legal">© 2026 دورك. العيادات والأسماء في العرض من خيال المصمم.</p>
+  </div>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

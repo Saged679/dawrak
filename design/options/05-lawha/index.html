@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دورك — لوحة حجوزات عيادتك ليوم كامل</title>
+<meta name="description" content="دورك: نظام حجز للعيادات والصالونات مع مساعد ذكي يحجز عنك على واتساب، ولوحة تشغيل تعرض يومك كله في شاشة واحدة.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script>try{var t=localStorage.getItem('dawrak-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark'}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#cal">انتقل إلى الجدول</a>
+
+<header class="top">
+  <div class="wrap top__in">
+    <a class="logo" href="#" aria-label="دورك">
+      <span class="logo__mark" aria-hidden="true">د</span>
+      <span class="logo__word">دورك</span>
+    </a>
+    <nav class="nav" aria-label="الرئيسية">
+      <a href="#cal">الجدول</a>
+      <a href="#how">كيف يعمل</a>
+      <a href="#chat">المساعد</a>
+      <a href="#numbers">الأرقام</a>
+    </nav>
+    <div class="top__tools">
+      <button class="theme" id="theme" type="button" aria-pressed="false" aria-label="تبديل الوضع الليلي">
+        <span class="theme__dot" aria-hidden="true"></span>
+        <span class="theme__txt" id="themeTxt">ليلي</span>
+      </button>
+      <a class="btn btn--solid" href="#demo">جرّب العرض</a>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="hero wrap" aria-labelledby="h1">
+  <div class="hero__head">
+    <h1 id="h1">يومك في العيادة،<br>كله في شاشة واحدة.</h1>
+    <div class="hero__side">
+      <p>كل موعد، وكل طبيب، وكل ريال دخل اليوم. والعميل يحجز بنفسه أو يكتب لمساعد دورك على واتساب، فيظهر الحجز في مكانه من الجدول دون أن ترفع سماعة.</p>
+      <p class="hero__date" id="dateLine"><span>الخميس 12 نوفمبر 2026</span><span class="sep" aria-hidden="true"></span><span>2 جمادى الآخرة 1448 هـ</span></p>
+    </div>
+  </div>
+
+  <dl class="kpis" id="kpis" aria-label="أرقام اليوم">
+    <div class="kpi"><dt>مواعيد اليوم</dt><dd id="kTotal">—</dd><span class="kpi__sub" id="kTotalSub"></span></div>
+    <div class="kpi"><dt>إيراد اليوم</dt><dd><span id="kRev">—</span> <small>ر.س</small></dd><span class="kpi__sub" id="kRevSub"></span></div>
+    <div class="kpi"><dt>نسبة عدم الحضور</dt><dd><span id="kNo">—</span><small>٪</small></dd><span class="kpi__sub" id="kNoSub"></span></div>
+    <div class="kpi"><dt>في الانتظار الآن</dt><dd id="kWait">—</dd><span class="kpi__sub" id="kWaitSub"></span></div>
+  </dl>
+
+  <div class="app" id="cal" aria-label="جدول المواعيد التفاعلي">
+    <div class="app__bar">
+      <div class="seg" role="tablist" aria-label="طريقة العرض">
+        <button role="tab" id="tabDay" aria-selected="true" data-view="day">يوم</button>
+        <button role="tab" id="tabWeek" aria-selected="false" data-view="week">أسبوع</button>
+      </div>
+      <div class="daynav" id="daynav">
+        <button type="button" id="prev" aria-label="اليوم السابق">‹</button>
+        <strong id="dayLabel">الخميس 12 نوفمبر</strong>
+        <button type="button" id="next" aria-label="اليوم التالي">›</button>
+      </div>
+      <ul class="legend" id="legend" aria-label="دليل الحالات"></ul>
+    </div>
+
+    <div class="app__body">
+      <div class="calwrap" id="calwrap" tabindex="0" aria-label="الجدول، مرّر لرؤية باقي الأطباء">
+        <div id="grid"></div>
+      </div>
+      <aside class="detail" id="detail" aria-live="polite"></aside>
+    </div>
+    <p class="app__foot">عرض تجريبي: اضغط أي موعد لتفتحه، وغيّر حالته وشاهد الأرقام أعلاه تتحدث.</p>
+  </div>
+</section>
+
+<section class="how wrap" id="how" aria-labelledby="h-how">
+  <h2 id="h-how">كيف يمر الحجز من العميل إلى جدولك</h2>
+  <table class="ledger">
+    <caption class="sr">مراحل الحجز</caption>
+    <thead><tr><th scope="col">المرحلة</th><th scope="col">ما يفعله العميل</th><th scope="col">ما يحدث في لوحتك</th><th scope="col">الزمن</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">الاختيار</th><td>يفتح رابط العيادة من هاتفه ويختار الخدمة: تنظيف أسنان، كشف جلدية، باقة عناية.</td><td>تظهر له الأوقات الفارغة فقط، حسب جدول كل طبيب وإجازاته.</td><td class="num">8 ثوانٍ</td></tr>
+      <tr><th scope="row">الموعد</th><td>يختار الطبيب أو يترك الاختيار لدورك، ثم يحدد الوقت.</td><td>يُحجز الوقت فوراً ولا يستطيع أحد غيره أخذه أثناء الدفع.</td><td class="num">6 ثوانٍ</td></tr>
+      <tr><th scope="row">التأكيد</th><td>يدفع العربون بمدى أو Apple Pay، أو يؤكد برسالة واتساب.</td><td>يتحول الموعد من «بانتظار التأكيد» إلى «مؤكد» ويصل إشعار للاستقبال.</td><td class="num">20 ثانية</td></tr>
+      <tr><th scope="row">التذكير</th><td>تصله رسالة قبل الموعد بيوم وأخرى قبله بساعتين.</td><td>تنخفض نسبة عدم الحضور، ويمكنك إعادة بيع الموعد الملغي بضغطة.</td><td class="num">تلقائي</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="chat wrap" id="chat" aria-labelledby="h-chat">
+  <div class="chat__intro">
+    <h2 id="h-chat">والعميل الذي لا يحب النماذج؟ يكتب فقط.</h2>
+    <p>مساعد دورك يفهم اللهجة السعودية والمصرية، ويقرأ جدولك الحقيقي قبل أن يعد العميل بأي وقت. لا يخترع موعداً ولا يحجز فوق موعد قائم.</p>
+    <ul class="checks">
+      <li>يسأل عن الخدمة والطبيب والوقت المناسب فقط</li>
+      <li>يعرض ثلاثة أوقات متاحة لا أكثر</li>
+      <li>يحوّل الحالات الحساسة إلى موظف الاستقبال</li>
+    </ul>
+  </div>
+
+  <div class="chatpair">
+    <div class="thread" role="log" aria-label="محادثة واتساب مع مساعد دورك">
+      <div class="thread__head"><span class="av" aria-hidden="true">م</span><div><strong>مها العتيبي</strong><small>واتساب · 11:42 ص</small></div></div>
+      <div class="msg msg--in" dir="rtl"><p>السلام عليكم، أبي موعد تنظيف أسنان بعد المغرب إذا ممكن</p><time>11:42</time></div>
+      <div class="msg msg--out"><p>وعليكم السلام أستاذة مها. أقرب أوقات متاحة اليوم لتنظيف الأسنان عند د. ماجد الشهري: 5:30 م، 6:00 م، 6:30 م. أيها يناسبك؟</p><time>11:42</time></div>
+      <div class="msg msg--in"><p>6:00 حلو</p><time>11:43</time></div>
+      <div class="msg msg--out"><p>تم حجز 6:00 م مع د. ماجد، والعربون 50 ر.س. هذا رابط الدفع، والموعد يتأكد بعده مباشرة.</p><time>11:43</time></div>
+    </div>
+
+    <div class="logbox">
+      <h3>ما كتبه المساعد في جدولك</h3>
+      <table class="log">
+        <caption class="sr">سجل عمليات المساعد</caption>
+        <tbody>
+          <tr><td class="num">11:42:07</td><td>قرأ الأوقات الفارغة عند د. ماجد الشهري</td></tr>
+          <tr><td class="num">11:42:09</td><td>أرسل ثلاثة خيارات للعميلة</td></tr>
+          <tr class="hit"><td class="num">11:43:21</td><td>حجز 18:00 – 18:30، تنظيف أسنان، بانتظار العربون</td></tr>
+          <tr><td class="num">11:44:02</td><td>وصل العربون، تحوّل الموعد إلى «مؤكد»</td></tr>
+        </tbody>
+      </table>
+      <div class="minislot" aria-label="الموعد كما يظهر في الجدول">
+        <span class="minislot__time num">18:00</span>
+        <span class="minislot__block">مها العتيبي · تنظيف أسنان <em>مؤكد</em></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="numbers wrap" id="numbers" aria-labelledby="h-num">
+  <h2 id="h-num">وفي آخر اليوم، الأرقام جاهزة بلا حساب يدوي</h2>
+
+  <div class="numgrid">
+    <div class="tblwrap">
+      <h3>الأطباء اليوم</h3>
+      <table class="data">
+        <thead><tr><th scope="col">الطبيب</th><th scope="col">المواعيد</th><th scope="col">الإشغال</th><th scope="col">الإيراد (ر.س)</th></tr></thead>
+        <tbody id="docRows"></tbody>
+      </table>
+    </div>
+
+    <div class="tblwrap">
+      <h3>الخدمات الأعلى إيراداً هذا الأسبوع</h3>
+      <table class="data">
+        <thead><tr><th scope="col">الخدمة</th><th scope="col">الحجوزات</th><th scope="col">الإيراد (ر.س)</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">تقويم أسنان، متابعة</th><td class="num">31</td><td class="num">9,300</td></tr>
+          <tr><th scope="row">ليزر جلدية، جلسة</th><td class="num">14</td><td class="num">8,400</td></tr>
+          <tr><th scope="row">تنظيف وتلميع</th><td class="num">52</td><td class="num">7,800</td></tr>
+          <tr><th scope="row">كشف باطنة</th><td class="num">44</td><td class="num">5,280</td></tr>
+          <tr><th scope="row">كشف أطفال</th><td class="num">38</td><td class="num">3,800</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <figure class="noshow">
+      <figcaption><h3>عدم الحضور خلال 14 يوماً</h3><p>من 11٪ إلى 4٪ بعد تفعيل تذكير الساعتين.</p></figcaption>
+      <div class="bars" id="bars" role="img" aria-label="رسم أعمدة لنسبة عدم الحضور اليومية، تنخفض من 11 بالمئة إلى 4 بالمئة"></div>
+    </figure>
+  </div>
+</section>
+
+<section class="demo" id="demo" aria-labelledby="h-demo">
+  <div class="wrap demo__in">
+    <div>
+      <h2 id="h-demo">افتح عيادة تجريبية جاهزة، وجرّب دور الاستقبال.</h2>
+      <p>أربعة أطباء وخدمات وحجوزات وهمية، جاهزة لتغيّرها وتحجز فيها. لا بطاقة ولا تسجيل، والبيانات تُمحى عند الخروج.</p>
+    </div>
+    <div class="demo__act">
+      <a class="btn btn--big" href="#cal">ادخل العيادة التجريبية</a>
+      <a class="btn btn--line" href="#chat">أو كلّم المساعد أولاً</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <div><strong>دورك</strong><p>نظام حجز للعيادات والصالونات في السعودية والخليج ومصر.</p></div>
+    <ul><li><a href="#cal">الجدول</a></li><li><a href="#how">كيف يعمل</a></li><li><a href="#chat">المساعد</a></li><li><a href="#numbers">الأرقام</a></li></ul>
+    <p class="foot__fine">عرض تصميمي. الأسماء والأرقام وهمية.<br>Dawrak · EN soon</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

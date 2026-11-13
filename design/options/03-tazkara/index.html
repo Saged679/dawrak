@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دورك | احجز دورك في ثوانٍ</title>
+<meta name="description" content="دورك نظام حجز مواعيد للعيادات والصالونات مع مساعد ذكي يحجز عن عملائك بالعربي.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Changa:wght@600;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">تخطَّ إلى المحتوى</a>
+
+<header class="top">
+  <a class="brand" href="#" aria-label="دورك">
+    <span class="brand-mark" aria-hidden="true">№</span>
+    <span>دورك</span>
+  </a>
+  <nav aria-label="التنقل الرئيسي">
+    <a href="#how">كيف يعمل</a>
+    <a href="#chat">المساعد الذكي</a>
+    <a href="#dash">لوحة التحكم</a>
+  </nav>
+  <a class="btn btn-small" href="#demo">جرّب العرض</a>
+</header>
+
+<main id="main">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-copy">
+    <h1>خذ دورك<br>قبل ما توصل</h1>
+    <p class="lead">دورك يخلّي عيادتك أو صالونك يستقبل الحجوزات أونلاين، والمساعد الذكي يرد على عملائك في أي ساعة ويحجز لهم. ما في اتصالات ضايعة ولا مواعيد منسية.</p>
+    <div class="hero-actions">
+      <a class="btn" href="#demo">جرّب العرض المباشر</a>
+      <a class="btn btn-ghost" href="#how">شوف كيف يشتغل</a>
+    </div>
+  </div>
+
+  <div class="booker" aria-label="جرّب الحجز">
+    <fieldset class="pick">
+      <legend>الخدمة</legend>
+      <div class="chips" id="services">
+        <label><input type="radio" name="svc" value="كشف عام" data-doc="د. هالة العتيبي" checked><span>كشف عام</span></label>
+        <label><input type="radio" name="svc" value="تنظيف أسنان" data-doc="د. ياسر الشهري"><span>تنظيف أسنان</span></label>
+        <label><input type="radio" name="svc" value="قص وتصفيف" data-doc="سارة المصري"><span>قص وتصفيف</span></label>
+      </div>
+    </fieldset>
+    <fieldset class="pick">
+      <legend>الوقت</legend>
+      <div class="chips" id="slots">
+        <label><input type="radio" name="slot" value="4:30" data-n="14" checked><span>4:30 م</span></label>
+        <label><input type="radio" name="slot" value="5:00" data-n="15"><span>5:00 م</span></label>
+        <label><input type="radio" name="slot" value="5:30" data-n="16"><span>5:30 م</span></label>
+        <label><input type="radio" name="slot" value="6:15" data-n="18"><span>6:15 م</span></label>
+        <label class="taken"><input type="radio" name="slot" value="6:45" data-n="19" disabled><span>6:45 م</span></label>
+        <label><input type="radio" name="slot" value="7:30" data-n="21"><span>7:30 م</span></label>
+      </div>
+    </fieldset>
+
+    <article class="ticket" id="ticket" aria-live="polite">
+      <div class="ticket-main">
+        <p class="t-clinic">عيادة نخبة الأسنان والجلدية · الرياض</p>
+        <p class="t-label">رقم دورك</p>
+        <p class="t-num" id="tNum" dir="ltr">14</p>
+        <dl class="t-meta">
+          <div><dt>الخدمة</dt><dd id="tSvc">كشف عام</dd></div>
+          <div><dt>مع</dt><dd id="tDoc">د. هالة العتيبي</dd></div>
+        </dl>
+      </div>
+      <div class="ticket-stub">
+        <p class="t-time" id="tTime" dir="ltr">4:30 PM</p>
+        <p class="t-date"><span id="tGreg">الجمعة 13 نوفمبر 2026</span><span id="tHijri">4 جمادى الآخرة 1448 هـ</span></p>
+        <button class="stamp-btn" id="confirm" type="button">ثبّت الحجز</button>
+        <div class="stamp" id="stamp" aria-hidden="true">تم الحجز</div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- HOW -->
+<section class="how" id="how">
+  <h2>ثلاث خطوات وتصير في الدور</h2>
+  <ol class="steps">
+    <li class="step s1">
+      <span class="step-n" aria-hidden="true">1</span>
+      <h3>العميل يختار</h3>
+      <p>الخدمة، ثم الطبيب أو المصففة، ثم أقرب وقت فاضي. تظهر الأوقات المتاحة فقط، فلا يوجد حجز مزدوج.</p>
+    </li>
+    <li class="step s2">
+      <span class="step-n" aria-hidden="true">2</span>
+      <h3>أو يكتب للمساعد</h3>
+      <p>يكتب بالعربي كما يتكلم: «أبغى موعد تنظيف بعد المغرب». المساعد يفهم ويقترح ويحجز.</p>
+    </li>
+    <li class="step s3">
+      <span class="step-n" aria-hidden="true">3</span>
+      <h3>يوصله رقم دوره</h3>
+      <p>تذكرة فيها رقمه والموعد بالتاريخين الميلادي والهجري، وتذكير قبل الموعد بساعتين.</p>
+    </li>
+  </ol>
+</section>
+
+<!-- CHAT -->
+<section class="chat-sec" id="chat">
+  <div class="chat-copy">
+    <h2>المساعد يحجز وانت نايم</h2>
+    <p class="lead">60% من رسائل العملاء تجي بعد ساعات الدوام. بدل ما تضيع الحجز، المساعد يرد في ثوانٍ، يسأل عن اللي ينقصه، ويحجز في تقويمك مباشرة.</p>
+    <ul class="ticks">
+      <li>يفهم اللهجة السعودية والمصرية والخليجية</li>
+      <li>يعرف جدول كل طبيب وأوقات الصالون</li>
+      <li>يحوّل لك المحادثة إذا احتاج موظف حقيقي</li>
+    </ul>
+  </div>
+  <div class="phone" role="img" aria-label="محادثة تجريبية بين عميلة والمساعد الذكي تنتهي بتذكرة حجز">
+    <div class="phone-bar"><span class="dot"></span>مساعد دورك · صالون لمسة</div>
+    <div class="msgs">
+      <p class="m me">السلام عليكم، أبغى موعد صبغة جذور لهذا الأسبوع</p>
+      <p class="m bot">وعليكم السلام أستاذة نورة. عندنا الخميس 5:00 م مع مها، أو السبت 11:30 ص مع ريم. أيهم يناسبك؟</p>
+      <p class="m me">الخميس يناسبني</p>
+      <p class="m bot">تم. حجزت لك الخميس 19 نوفمبر الساعة 5:00 م. هذي تذكرتك:</p>
+      <div class="ticket mini">
+        <div class="ticket-main">
+          <p class="t-label">رقم دورك</p>
+          <p class="t-num" dir="ltr">07</p>
+        </div>
+        <div class="ticket-stub">
+          <p class="t-time" dir="ltr">5:00 PM</p>
+          <p class="t-date"><span>الخميس 19 نوفمبر</span><span>9 جمادى الآخرة 1448 هـ</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="composer" aria-hidden="true">اكتب رسالتك…</div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="dash-sec" id="dash">
+  <h2>لوحة تحكم بقدر ما تحتاج</h2>
+  <p class="lead">كل شي أمامك في شاشة وحدة: من داخل الآن، من بعده، وكم حجز اليوم.</p>
+
+  <div class="board" role="img" aria-label="معاينة لوحة التحكم: رقم الدور الحالي 12 وقائمة مواعيد اليوم">
+    <div class="board-now">
+      <p class="b-label">الآن نخدم</p>
+      <p class="b-num" dir="ltr">12</p>
+      <p class="b-name">محمد السيد</p>
+      <p class="b-sub">كشف عام · د. هالة</p>
+      <p class="b-date">الجمعة 13 نوفمبر 2026<br>4 جمادى الآخرة 1448 هـ</p>
+    </div>
+    <div class="board-list">
+      <div class="stats">
+        <div><b dir="ltr">23</b><span>حجز اليوم</span></div>
+        <div><b dir="ltr">3</b><span>ألغيت</span></div>
+        <div><b dir="ltr">9</b><span>من المساعد</span></div>
+      </div>
+      <table>
+        <caption class="sr">مواعيد اليوم</caption>
+        <thead><tr><th>الدور</th><th>العميل</th><th>الخدمة</th><th>الوقت</th></tr></thead>
+        <tbody>
+          <tr class="now"><td dir="ltr">12</td><td>محمد السيد</td><td>كشف عام</td><td dir="ltr">4:00 PM</td></tr>
+          <tr><td dir="ltr">13</td><td>فاطمة الدوسري</td><td>تنظيف أسنان</td><td dir="ltr">4:15 PM</td></tr>
+          <tr><td dir="ltr">14</td><td>عبدالله القحطاني</td><td>كشف عام</td><td dir="ltr">4:30 PM</td></tr>
+          <tr><td dir="ltr">15</td><td>منى حسن</td><td>استشارة جلدية</td><td dir="ltr">5:00 PM</td></tr>
+          <tr><td dir="ltr">16</td><td>خالد الغامدي</td><td>تبييض أسنان</td><td dir="ltr">5:30 PM</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta" id="demo">
+  <div class="big-ticket">
+    <div class="bt-main">
+      <p class="t-label">الدور القادم</p>
+      <h2>عيادتك أو صالونك</h2>
+      <p>أنشئ حسابًا تجريبيًا في دقيقتين وشوف المساعد يحجز على بياناتك. مجانًا ولا تحتاج بطاقة.</p>
+      <a class="btn btn-ink" href="#">ابدأ العرض التجريبي</a>
+    </div>
+    <div class="bt-stub" aria-hidden="true">
+      <p class="t-num" dir="ltr">01</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="foot-brand"><span class="brand-mark" aria-hidden="true">№</span> دورك</div>
+  <p>نظام حجز للعيادات والصالونات في السعودية والخليج ومصر.</p>
+  <p class="small">عرض تصميمي. العيادات والأسماء في هذه الصفحة خيالية.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

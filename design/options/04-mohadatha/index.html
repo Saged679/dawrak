@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دورك | احجز بالكلام، والعيادة تفهمك</title>
+<meta name="description" content="مساعد ذكي يحجز مواعيد العيادات والصالونات من محادثة أو رسالة صوتية، ويضع الموعد في تقويم المالك لحظة التأكيد.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">تخطَّ إلى المحتوى</a>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="#top" aria-label="دورك، الصفحة الرئيسية">
+      <span class="brand-mark" aria-hidden="true">د</span>
+      <span class="brand-name">دورك</span>
+    </a>
+    <nav aria-label="الأقسام">
+      <ul class="nav">
+        <li><a href="#how">كيف يعمل الحجز</a></li>
+        <li><a href="#chat">المساعد</a></li>
+        <li><a href="#dash">لوحة المالك</a></li>
+      </ul>
+    </nav>
+    <a class="btn btn-saffron btn-sm" href="#demo">جرّب العرض</a>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- HERO: the conversation is the page -->
+<section class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <h1>العميلة ترسل رسالة صوتية.<br>موعدها يظهر في تقويمك.</h1>
+      <p class="lead">دورك مساعد يرد على عملائك بلهجتهم، يفهم الصوت والكتابة، ويحجز الموعد المناسب مع الطبيب أو المصففة خطوة بخطوة. لا مكالمات ضائعة ولا رسائل متأخرة.</p>
+      <div class="hero-actions">
+        <a class="btn btn-saffron" href="#demo">جرّب العرض المباشر</a>
+        <a class="btn btn-ghost" href="#how">شاهد خطوات الحجز</a>
+      </div>
+      <p class="hero-note">يعمل بالعربية الفصحى واللهجتين الخليجية والمصرية. مجاني للتجربة.</p>
+    </div>
+
+    <div class="stage">
+      <!-- Phone -->
+      <div class="phone" role="group" aria-labelledby="phone-title">
+        <div class="phone-head">
+          <span class="avatar" aria-hidden="true">د</span>
+          <div class="phone-who">
+            <strong id="phone-title">مساعد عيادة الندى</strong>
+            <span class="status"><i class="dot" aria-hidden="true"></i> يرد خلال ثوانٍ</span>
+          </div>
+          <button class="replay" type="button" id="replay" aria-label="أعد تشغيل المحادثة" hidden>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
+        <div class="thread" id="thread" role="log" aria-label="محادثة الحجز" tabindex="0">
+          <p class="day-chip">اليوم، ٩:٤٢ صباحًا</p>
+
+          <!-- 1. voice note from customer -->
+          <div class="msg me" data-step="1">
+            <div class="voice">
+              <button class="play" type="button" aria-label="تشغيل الرسالة الصوتية، مدتها ٧ ثوانٍ" aria-pressed="false">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path class="i-play" d="M8 5.5v13l11-6.5z" fill="currentColor"/><path class="i-pause" d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>
+              </button>
+              <div class="wave" aria-hidden="true">
+                <i style="--h:30%"></i><i style="--h:55%"></i><i style="--h:80%"></i><i style="--h:45%"></i><i style="--h:95%"></i><i style="--h:60%"></i><i style="--h:35%"></i><i style="--h:70%"></i><i style="--h:100%"></i><i style="--h:50%"></i><i style="--h:25%"></i><i style="--h:65%"></i><i style="--h:85%"></i><i style="--h:40%"></i><i style="--h:75%"></i><i style="--h:30%"></i><i style="--h:55%"></i><i style="--h:20%"></i><i style="--h:45%"></i><i style="--h:30%"></i>
+              </div>
+              <span class="dur">٠:٠٧</span>
+            </div>
+            <p class="transcript"><span>النص المفهوم</span> «السلام عليكم، عايزة أحجز كشف أسنان يوم الأحد بعد العصر»</p>
+            <time class="stamp">٩:٤٢</time>
+          </div>
+
+          <!-- 2. assistant -->
+          <div class="msg bot" data-step="2">
+            <p>أهلًا يا منى، وصلتني رسالتك الصوتية. كشف أسنان يوم الأحد ١٥ نوفمبر، تمام. تحبي مع د. هشام الجوهري؟</p>
+            <time class="stamp">٩:٤٢</time>
+          </div>
+
+          <!-- 3. customer -->
+          <div class="msg me" data-step="3">
+            <p>أيوه، بس بعد العصر لو ممكن</p>
+            <time class="stamp">٩:٤٣</time>
+          </div>
+
+          <!-- 4. assistant with slots -->
+          <div class="msg bot" data-step="4">
+            <p>المتاح مع الدكتور بعد العصر:</p>
+            <div class="slots" aria-label="المواعيد المتاحة">
+              <span class="slot">٤:٣٠ م</span>
+              <span class="slot slot-pick" data-pick>٥:١٥ م</span>
+              <span class="slot">٦:٠٠ م</span>
+            </div>
+            <time class="stamp">٩:٤٣</time>
+          </div>
+
+          <!-- 5. customer picks -->
+          <div class="msg me" data-step="5">
+            <p>٥:١٥ مناسب</p>
+            <time class="stamp">٩:٤٣</time>
+          </div>
+
+          <!-- 6. assistant confirms -->
+          <div class="msg bot" data-step="6">
+            <p>تم الحجز. هبعتلك تذكير قبلها بساعتين.</p>
+            <div class="ticket">
+              <div class="ticket-top">
+                <strong>كشف أسنان</strong>
+                <span class="ticket-ok">مؤكد</span>
+              </div>
+              <dl>
+                <div><dt>الطبيب</dt><dd>د. هشام الجوهري</dd></div>
+                <div><dt>الموعد</dt><dd>الأحد ١٥ نوفمبر ٢٠٢٦، ٥:١٥ م</dd></div>
+                <div><dt>الهجري</dt><dd>٤ جمادى الآخرة ١٤٤٨</dd></div>
+              </dl>
+            </div>
+            <time class="stamp">٩:٤٣</time>
+          </div>
+
+          <!-- typing indicator, moved by JS -->
+          <div class="msg bot typing" id="typing" hidden aria-hidden="true"><i></i><i></i><i></i></div>
+        </div>
+
+        <div class="composer" aria-hidden="true">
+          <span class="composer-field">اكتب رسالة أو سجّل صوتك</span>
+          <span class="mic"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0M12 17v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+        </div>
+      </div>
+
+      <!-- Owner's calendar -->
+      <aside class="cal" aria-labelledby="cal-title">
+        <div class="cal-head">
+          <div>
+            <h2 id="cal-title">تقويم د. هشام</h2>
+            <p>الأحد ١٥ نوفمبر ٢٠٢٦ <span class="sep" aria-hidden="true">·</span> ٤ جمادى الآخرة ١٤٤٨</p>
+          </div>
+          <span class="live" id="live" aria-live="polite">وصل حجز جديد</span>
+        </div>
+        <ol class="rows">
+          <li><time>٤:٠٠</time><div class="ev ev-busy">سلمى الغامدي <small>تنظيف</small></div></li>
+          <li><time>٤:٣٠</time><div class="ev ev-free">متاح</div></li>
+          <li class="row-new"><time>٥:١٥</time>
+            <div class="ev ev-new" id="newEv">
+              <span class="ev-badge">جديد من المساعد</span>
+              <strong>منى عبد الرحيم</strong>
+              <small>كشف أسنان، ٣٠ دقيقة</small>
+            </div>
+          </li>
+          <li><time>٦:٠٠</time><div class="ev ev-busy">يوسف العتيبي <small>حشو</small></div></li>
+          <li><time>٦:٣٠</time><div class="ev ev-free">متاح</div></li>
+        </ol>
+        <p class="cal-foot">تُرسل المنصة تأكيدًا للعميلة وتذكيرًا قبل الموعد دون أي عمل منك.</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- HOW A BOOKING WORKS -->
+<section class="sec" id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>الحجز في ثلاث خطوات، من الجوال</h2>
+      <p>العميل يختار بنفسه من نموذج واضح، أو يترك المساعد يفعل ذلك في المحادثة. النتيجة واحدة.</p>
+    </div>
+
+    <div class="how-grid">
+      <ol class="steps">
+        <li>
+          <span class="step-n" aria-hidden="true">١</span>
+          <div><h3>يختار الخدمة</h3><p>كشف، تنظيف، قص وصبغة. المدة والسعر ظاهران قبل أي ضغطة.</p></div>
+        </li>
+        <li>
+          <span class="step-n" aria-hidden="true">٢</span>
+          <div><h3>يختار الطبيب والوقت</h3><p>لا تظهر إلا الأوقات الفارغة فعلًا، حسب دوام كل طبيب وإجازاته.</p></div>
+        </li>
+        <li>
+          <span class="step-n" aria-hidden="true">٣</span>
+          <div><h3>يصله التأكيد</h3><p>رسالة بالتفاصيل وتذكير قبل الموعد بساعتين، فتقل المواعيد الضائعة.</p></div>
+        </li>
+      </ol>
+
+      <div class="widget" role="group" aria-label="نموذج الحجز، مثال">
+        <div class="widget-top">
+          <strong>صالون لمسة، جدة</strong>
+          <span>الإثنين ١٦ نوفمبر · ٥ جمادى الآخرة</span>
+        </div>
+        <p class="w-label">الخدمة</p>
+        <div class="chips">
+          <span class="chip">قص شعر</span>
+          <span class="chip chip-on">صبغة جذور</span>
+          <span class="chip">عناية بالبشرة</span>
+        </div>
+        <p class="w-label">المصففة</p>
+        <div class="chips">
+          <span class="chip chip-on">ريم الشهري</span>
+          <span class="chip">هند القحطاني</span>
+        </div>
+        <p class="w-label">الوقت</p>
+        <div class="times">
+          <span class="t t-off">١٠:٠٠</span><span class="t">١١:٣٠</span><span class="t t-on">١:٠٠</span><span class="t">٢:٣٠</span><span class="t t-off">٤:٠٠</span><span class="t">٥:٣٠</span>
+        </div>
+        <div class="widget-foot">
+          <span>صبغة جذور · ٩٠ دقيقة · <b>٢٢٠ ر.س</b></span>
+          <span class="btn btn-cobalt btn-sm" aria-hidden="true">أكّد الحجز</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AI CHAT IN ACTION -->
+<section class="sec sec-tint" id="chat">
+  <div class="wrap chat-sec">
+    <div class="sec-head">
+      <h2>يفهم اللهجة ويعرف متى يسلّم لإنسان</h2>
+      <p>المساعد يجيب من بيانات عيادتك فقط: الأسعار، الدوام، التحضير للكشف. وإذا خرج السؤال عن ذلك، يحوّله لموظف ويترك له ملخصًا.</p>
+    </div>
+
+    <div class="duo">
+      <figure class="mini">
+        <figcaption>سؤال عن السعر، بلهجة خليجية</figcaption>
+        <div class="mini-thread">
+          <p class="b me">كم سعر تبييض الأسنان؟ وهل فيه خصم للعوائل؟</p>
+          <p class="b bot">التبييض في عيادة الندى ٨٥٠ ر.س للجلسة. فيه خصم ١٠٪ إذا حجز شخصان أو أكثر من نفس العائلة في اليوم نفسه. أحجز لكم؟</p>
+          <p class="b me">إيه، لي ولأختي</p>
+          <p class="b bot">تمام، أقرب موعد متاح يوم الثلاثاء. تفضلون صباحًا أو مساءً؟</p>
+        </div>
+      </figure>
+      <figure class="mini mini-hand">
+        <figcaption>سؤال طبي، يتحول لموظف</figcaption>
+        <div class="mini-thread">
+          <p class="b me">عندي ورم بسيط في اللثة من يومين، هل أقدر أستخدم المضاد اللي عندي؟</p>
+          <p class="b bot">هذا سؤال يحتاج رأي الطبيب ولا أستطيع الإجابة عنه. حوّلت محادثتك الآن إلى موظفة الاستقبال، وسترد عليك خلال ١٥ دقيقة.</p>
+          <p class="handoff">حُوّلت إلى: نورة، الاستقبال · أُرسل ملخص المحادثة</p>
+        </div>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD PREVIEW -->
+<section class="sec" id="dash">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>لوحة المالك: اليوم كله في شاشة واحدة</h2>
+      <p>التقويم والموظفون والخدمات والمحادثات في مكان واحد، وكل حجز يحمل علامة تدل على من أنشأه.</p>
+    </div>
+
+    <div class="dash" role="group" aria-label="معاينة لوحة التحكم، مثال">
+      <div class="dash-main">
+        <div class="dash-bar">
+          <strong>الأسبوع الحالي</strong>
+          <span>١٥ – ١٩ نوفمبر ٢٠٢٦ · ٤ – ٨ جمادى الآخرة ١٤٤٨</span>
+        </div>
+        <div class="week">
+          <div class="day"><h3>الأحد</h3>
+            <p class="e e-ai">٤:٠٠ سلمى</p><p class="e e-ai e-fresh">٥:١٥ منى</p><p class="e">٦:٠٠ يوسف</p></div>
+          <div class="day"><h3>الإثنين</h3>
+            <p class="e">١٠:٠٠ أحمد</p><p class="e e-ai">١١:٣٠ ليلى</p><p class="e">٥:٠٠ عمر</p></div>
+          <div class="day"><h3>الثلاثاء</h3>
+            <p class="e e-ai">٩:٣٠ فاطمة</p><p class="e e-ai">٩:٣٠ رنا</p><p class="e">٤:٣٠ خالد</p></div>
+          <div class="day"><h3>الأربعاء</h3>
+            <p class="e">١١:٠٠ سارة</p><p class="e e-ai">٣:٣٠ ياسمين</p></div>
+          <div class="day"><h3>الخميس</h3>
+            <p class="e e-ai">١٠:٣٠ محمود</p><p class="e">١٢:٠٠ دينا</p><p class="e e-ai">٢:٠٠ عبد الله</p></div>
+        </div>
+        <p class="legend"><i class="k k-ai"></i> حجزها المساعد <i class="k k-man"></i> حجز يدوي أو من النموذج</p>
+      </div>
+
+      <div class="dash-side">
+        <div class="big">
+          <span class="big-n">٣٨</span>
+          <span class="big-l">محادثة هذا الأسبوع، <b>٢٩</b> منها انتهت بحجز بلا تدخل موظف</span>
+        </div>
+        <div class="inbox">
+          <h3>آخر المحادثات</h3>
+          <ul>
+            <li><span class="who">منى عبد الرحيم</span><span class="what">حجز كشف أسنان</span><span class="tag tag-ok">حُجز</span></li>
+            <li><span class="who">+٩٦٦ ٥٥ ٠١٢ ٣٤٠٠</span><span class="what">سؤال عن التبييض</span><span class="tag tag-ok">حُجز</span></li>
+            <li><span class="who">هالة صلاح</span><span class="what">ألم بعد الحشو</span><span class="tag tag-hand">عند نورة</span></li>
+            <li><span class="who">فيصل الدوسري</span><span class="what">إلغاء موعد الأربعاء</span><span class="tag tag-ok">أُلغي</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO CTA -->
+<section class="cta" id="demo">
+  <div class="wrap cta-in">
+    <div>
+      <h2>اكتب لمساعد عيادتك التجريبية كما يكتب عميلك</h2>
+      <p>سجّل رسالة صوتية أو اكتب بلهجتك، وشاهد الموعد يصل إلى تقويم الدكتور أمامك. بلا بطاقة ولا تسجيل.</p>
+    </div>
+    <div class="cta-actions">
+      <a class="btn btn-saffron btn-lg" href="#top">افتح العرض المباشر</a>
+      <p>عيادة وهمية، بيانات تجريبية، تعمل على جوالك.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="brand brand-foot">
+      <span class="brand-mark" aria-hidden="true">د</span>
+      <span class="brand-name">دورك</span>
+    </div>
+    <p>نظام حجز عربي أولًا للعيادات والصالونات في السعودية والخليج ومصر.</p>
+    <p class="fine">مشروع عرض لمنصة مستقل. العيادات والأسماء في هذه الصفحة وهمية.</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

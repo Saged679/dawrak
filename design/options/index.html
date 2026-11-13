@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دورك: مقارنة التصميمات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f6f7f8; --ink:#16212b; --muted:#5c6975; --line:#d9dee3; --card:#fff; --accent:#0b5a7a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1418; --ink:#e8edf1; --muted:#9aa7b2; --line:#26313a; --card:#161d23; --accent:#6cc4e8; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"IBM Plex Sans Arabic", system-ui, sans-serif; line-height:1.8; }
+  main { max-width:1180px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:1.75rem; margin:0 0 4px; }
+  .lead { color:var(--muted); margin:0 0 28px; max-width:62ch; }
+  .grid { display:grid; gap:20px; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); }
+  article { background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
+  .preview { position:relative; height:220px; overflow:hidden; border-bottom:1px solid var(--line); background:#fff; }
+  .preview iframe { width:1280px; height:880px; border:0; transform:scale(.25); transform-origin:top right; position:absolute; top:0; right:0; pointer-events:none; }
+  .body { padding:14px 16px 16px; display:flex; flex-direction:column; gap:6px; flex:1; }
+  h2 { font-size:1.1rem; margin:0; }
+  h2 small { font-weight:400; color:var(--muted); margin-inline-start:6px; font-size:.8rem; }
+  p { margin:0; color:var(--muted); font-size:.92rem; }
+  .actions { margin-top:auto; padding-top:8px; display:flex; gap:14px; font-size:.92rem; }
+  a { color:var(--accent); font-weight:600; }
+  a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>دورك: خمس اتجاهات للتصميم</h1>
+  <p class="lead">افتح كل اتجاه في تاب جديد وقارن على الموبايل والكمبيوتر. الملاحظات والألوان والخطوط في ملف NOTES لكل اتجاه.</p>
+  <div class="grid">
+
+    <article>
+      <div class="preview"><iframe src="01-hadi/index.html" title="معاينة" loading="lazy" tabindex="-1"></iframe></div>
+      <div class="body">
+        <h2>١. عيادة هادئة <small>01-hadi</small></h2>
+        <p>كارت موعد ورقي بحافة مثقّبة وختم "مؤكَّد". تيل وأبيض، وخطا Readex Pro وIBM Plex Sans Arabic.</p>
+        <div class="actions"><a href="01-hadi/index.html">افتح التصميم</a><a href="01-hadi/NOTES.md">الملاحظات</a></div>
+      </div>
+    </article>
+
+    <article>
+      <div class="preview"><iframe src="02-fakhama/index.html" title="معاينة" loading="lazy" tabindex="-1"></iframe></div>
+      <div class="body">
+        <h2>٢. فخامة خليجية <small>02-fakhama</small></h2>
+        <p>عنوان ضخم بخط Reem Kufi فوق زخرفة مشربية نحاسية. أخضر منتصف الليل ونحاسي ولؤلؤي.</p>
+        <div class="actions"><a href="02-fakhama/index.html">افتح التصميم</a><a href="02-fakhama/NOTES.md">الملاحظات</a></div>
+      </div>
+    </article>
+
+    <article>
+      <div class="preview"><iframe src="03-tazkara/index.html" title="معاينة" loading="lazy" tabindex="-1"></iframe></div>
+      <div class="body">
+        <h2>٣. تذكرة الدور <small>03-tazkara</small></h2>
+        <p>التذكرة هي أداة الحجز نفسها: اختار خدمة وميعاد فيتغير رقم الدور ويتختم. أزرق وأصفر مسطحين، وخطا Changa وTajawal.</p>
+        <div class="actions"><a href="03-tazkara/index.html">افتح التصميم</a><a href="03-tazkara/NOTES.md">الملاحظات</a></div>
+      </div>
+    </article>
+
+    <article>
+      <div class="preview"><iframe src="04-mohadatha/index.html" title="معاينة" loading="lazy" tabindex="-1"></iframe></div>
+      <div class="body">
+        <h2>٤. شات أولاً <small>04-mohadatha</small></h2>
+        <p>محادثة مكتوبة بالعربي مع voice note، والحجز بيظهر في تقويم المالك في نفس اللحظة. كوبالت وزعفران.</p>
+        <div class="actions"><a href="04-mohadatha/index.html">افتح التصميم</a><a href="04-mohadatha/NOTES.md">الملاحظات</a></div>
+      </div>
+    </article>
+
+    <article>
+      <div class="preview"><iframe src="05-lawha/index.html" title="معاينة" loading="lazy" tabindex="-1"></iframe></div>
+      <div class="body">
+        <h2>٥. لوحة تحكم كثيفة <small>05-lawha</small></h2>
+        <p>تقويم يومي تفاعلي بأربع أعمدة أطباء، وإحصائيات بتتحدث لما تغيّر حالة موعد. وضع فاتح وداكن.</p>
+        <div class="actions"><a href="05-lawha/index.html">افتح التصميم</a><a href="05-lawha/NOTES.md">الملاحظات</a></div>
+      </div>
+    </article>
+
+  </div>
+</main>
+</body>
+</html>
