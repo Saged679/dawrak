@@ -3,6 +3,7 @@ import { isAuthorizedCron } from "@/lib/cron/auth";
 import { getClientIp } from "@/lib/db/client-ip";
 import { getServiceClient } from "@/lib/db/client";
 import { rateLimitOk } from "@/lib/db/public";
+import { reembedMissing } from "@/lib/agent/reembed";
 import { purgeExpiredDemoUsers } from "@/lib/demo/purge";
 import { mailProviderFor } from "@/lib/mail";
 import { manageUrl } from "@/lib/mail/links";
@@ -55,7 +56,15 @@ async function handle(request: NextRequest): Promise<NextResponse> {
     } catch (e) {
       console.error("cron_demo_purge_error", e instanceof Error ? e.message : "unknown");
     }
-    return NextResponse.json({ ok: true, ...summary }, { headers: NO_STORE });
+    // Best effort: give knowledge chunks without an embedding (seeded demo content) their vector, a few per run.
+    // Skips without a Gemini key or on quota errors; never fails the cron and never logs content.
+    let reembed: Awaited<ReturnType<typeof reembedMissing>> = { embedded: 0, skipped: "error" };
+    try {
+      reembed = await reembedMissing(db);
+    } catch {
+      // reembedMissing never throws; this is only a belt for the "never fails the cron" rule
+    }
+    return NextResponse.json({ ok: true, ...summary, reembed }, { headers: NO_STORE });
   } catch (e) {
     console.error("cron_reminders_error", e instanceof Error ? e.message : "unknown");
     return NextResponse.json({ ok: false }, { status: 500, headers: NO_STORE });

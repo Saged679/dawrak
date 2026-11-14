@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeDir, routing } from "@/i18n/routing";
+import { NavProgress } from "@/components/motion/nav-progress";
 import { siteUrl } from "@/lib/seo/site";
 import "../globals.css";
 
@@ -52,7 +53,10 @@ export default async function LocaleLayout({ children, params }: Props) {
       className={`${readex.variable} ${plexArabic.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          <NavProgress />
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

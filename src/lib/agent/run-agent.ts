@@ -1,14 +1,18 @@
-import { google } from "@ai-sdk/google";
 import { isStepCount, streamText, type LanguageModel, type ModelMessage } from "ai";
 import { createAgentDb } from "./db";
+import { createFallbackModel } from "./fallback-model";
+import { chainFromEnv, DEFAULT_MODEL, QuotaMemo, sharedQuotaMemo, type ChainEntry } from "./models";
+import { createRepairToolCall } from "./tool-input";
+import { guardReply, TurnState } from "./turn-guard";
 import { embedQuery as defaultEmbedQuery } from "./knowledge";
 import { buildSystemPrompt } from "./prompt";
 import { createTools } from "./tools";
 import type { AfterBooking, AgentDb, AgentMessage, Locale, TenantInfo } from "./types";
 
-export const DEFAULT_MODEL = "gemini-2.5-flash";
+export { DEFAULT_MODEL };
 const MAX_HISTORY = 16;
-const MAX_STEPS = 6;
+/** Room for the lookups (services, providers, availability), a booking call, ONE retry after a rejected call, and the answer. */
+const MAX_STEPS = 8;
 
 export type RunAgentInput = {
   tenantId: string;
@@ -25,6 +29,9 @@ export type RunAgentInput = {
   deps?: {
     db?: AgentDb;
     model?: LanguageModel;
+    /** Model fallback chain (tests); default: GEMINI_MODEL + GEMINI_FALLBACK_MODELS. */
+    chain?: ChainEntry[];
+    quotaMemo?: QuotaMemo;
     embedQuery?: (text: string) => Promise<number[]>;
     now?: Date;
   };
@@ -62,7 +69,8 @@ export async function runAgent(input: RunAgentInput) {
   const db = input.deps?.db ?? createAgentDb();
   const tenant = await loadTenant(db, input.tenantId);
 
-  const tools = createTools({
+  const turn = new TurnState();
+  const baseTools = createTools({
     db,
     tenantId: tenant.id,
     conversationId: input.conversationId,
@@ -71,19 +79,44 @@ export async function runAgent(input: RunAgentInput) {
     embedQuery: input.deps?.embedQuery ?? defaultEmbedQuery,
     afterBooking: input.afterBooking,
   });
+  // Record every tool outcome of this turn (used to decide what may be stored as the final reply).
+  const tools = Object.fromEntries(
+    Object.entries(baseTools).map(([name, t]) => {
+      const exec = (t as unknown as { execute: (...a: unknown[]) => PromiseLike<unknown> }).execute;
+      return [
+        name,
+        {
+          ...t,
+          execute: async (...a: unknown[]) => {
+            const r = await exec(...a);
+            turn.recordResult(name, r);
+            return r;
+          },
+        },
+      ];
+    }),
+  ) as unknown as typeof baseTools;
+
+  const injected = input.deps?.chain ?? (input.deps?.model ? [{ id: "injected", model: input.deps.model }] : null);
+  const model = createFallbackModel(injected ?? chainFromEnv(), {
+    memo: input.deps?.quotaMemo ?? (injected ? new QuotaMemo() : sharedQuotaMemo),
+    onFallback: (e) => console.warn("model_unavailable", JSON.stringify({ model: e.model, ...e.failure })),
+  });
 
   const messages: ModelMessage[] = [...(input.history ?? []).slice(-MAX_HISTORY), toUserContent(input.message)];
 
   return streamText({
-    model: input.deps?.model ?? google(process.env.GEMINI_MODEL || DEFAULT_MODEL),
+    model,
     system: buildSystemPrompt(tenant, input.locale, input.deps?.now),
     messages,
     tools,
     stopWhen: isStepCount(MAX_STEPS),
+    // A rejected tool input goes back to the model as a clear, value-free error in the same turn.
+    repairToolCall: createRepairToolCall<typeof tools>({ onInvalid: (name) => turn.record(name, "invalid") }),
     maxOutputTokens: 700,
     temperature: 0.3,
     onEnd: async (event) => {
-      if (input.onReply) await input.onReply(event.text);
+      if (input.onReply) await input.onReply(guardReply(event.text, turn).text);
     },
   });
 }

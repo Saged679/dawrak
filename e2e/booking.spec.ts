@@ -35,13 +35,29 @@ function randomSaudiPhone() {
   return `05${n}`;
 }
 
-async function pickFirstSlot(page: Page, service: string) {
-  await page.getByText(service, { exact: true }).click();
-  await page.getByRole("button", { name: "Continue" }).click(); // service -> provider
-  await page.getByRole("button", { name: "Continue" }).click(); // provider -> time
+/**
+ * Other specs (and the other project) book on the demo businesses in parallel, and most take the first slot of
+ * the first day; the dashboard spec also needs free time on the doctor's first day. Every booking test here
+ * therefore takes the first slot of its OWN later day (an index into the days that have times), so parallel runs
+ * cannot collide on one slot (a collision showed up as "slot_taken" in "salon confirmed straight away") and these
+ * tests never use up the free time the other specs rely on. Picking other slot indexes of the first day was
+ * tried and starved the dashboard reschedule spec.
+ */
+async function chooseSlot(page: Page, dayIndex: number) {
+  const days = page.locator('input[name="day-choice"]:not([disabled])');
+  await days.first().waitFor({ state: "attached" });
+  const n = await days.count();
+  await days.nth(Math.min(dayIndex, n - 1)).check({ force: true });
   const slot = page.locator('input[name="slot-choice"]').first();
   await slot.waitFor({ state: "attached" });
   await slot.check({ force: true });
+}
+
+async function pickSlot(page: Page, service: string, dayIndex: number) {
+  await page.getByText(service, { exact: true }).click();
+  await page.getByRole("button", { name: "Continue" }).click(); // service -> provider
+  await page.getByRole("button", { name: "Continue" }).click(); // provider -> time
+  await chooseSlot(page, dayIndex);
   await page.getByRole("button", { name: "Continue" }).click(); // time -> details
 }
 
@@ -89,7 +105,7 @@ test.describe("public booking", () => {
     phones.push(phone);
     await page.goto("/en/c/demo-clinic");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Nabd Dental Clinic");
-    await pickFirstSlot(page, "Check-up & Exam");
+    await pickSlot(page, "Check-up & Exam", 3);
     await fillDetails(page, "E2E Tester", phone);
     await page.getByRole("button", { name: "Confirm booking" }).click();
     // deposit tenant: the booking is held and the customer is sent to the payment page
@@ -123,9 +139,7 @@ test.describe("public booking", () => {
       await p.getByRole("button", { name: "Continue" }).click();
       await p.getByText("Dr. Salma Al-Harithi").click();
       await p.getByRole("button", { name: "Continue" }).click();
-      const slot = p.locator('input[name="slot-choice"]').first();
-      await slot.waitFor({ state: "attached" });
-      await slot.check({ force: true });
+      await chooseSlot(p, 5);
       await p.getByRole("button", { name: "Continue" }).click();
     }
     await fillDetails(a, "First Visitor", phoneA);
@@ -145,7 +159,7 @@ test.describe("public booking", () => {
     const phone = randomSaudiPhone();
     phones.push(phone);
     await page.goto("/en/c/demo-salon");
-    await pickFirstSlot(page, "Cut & Style");
+    await pickSlot(page, "Cut & Style", 4);
     await fillDetails(page, "Salon Tester", phone);
     await page.getByRole("button", { name: "Confirm booking" }).click();
     await expect(page.getByRole("heading", { name: "Your booking is confirmed" })).toBeVisible();
@@ -154,7 +168,7 @@ test.describe("public booking", () => {
 
   test("invalid phone shows an inline error and does not advance", async ({ page }) => {
     await page.goto("/en/c/demo-salon");
-    await pickFirstSlot(page, "Cut & Style");
+    await pickSlot(page, "Cut & Style", 0);
     await fillDetails(page, "X Y", "12345");
     await expect(page.getByText("Enter a valid Saudi or Egyptian mobile number.")).toBeVisible();
     await expect(page.getByLabel("Mobile number")).toHaveAttribute("aria-invalid", "true");

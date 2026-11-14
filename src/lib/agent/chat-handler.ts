@@ -7,6 +7,7 @@ import { createAgentDb } from "./db";
 import { checkAudioIpLimit, checkAudioTenantLimit, checkIpLimit, checkTenantLimit } from "./rate-limit";
 import { createAfterBooking, type SendBookingEmail } from "./booking-mail";
 import { e2eMockEnabled } from "./mock-gate";
+import { modelIdsFromEnv, sharedQuotaMemo, type AssistantQuotaError, type QuotaMemo } from "./models";
 import { runAgent } from "./run-agent";
 import {
   demoSessionSetCookie,
@@ -23,7 +24,26 @@ export type ChatDeps = {
   channel?: ChannelAdapter<Request, Response>;
   /** Replaces the booking confirmation mailer (tests). */
   sendBookingEmail?: SendBookingEmail;
+  /** Quota memo and model ids for the "every model is exhausted" fast path (tests). */
+  quotaMemo?: QuotaMemo;
+  modelIds?: string[];
 };
+
+/**
+ * Every model of the chain is known to be out of quota (per-instance memo): answer 503 without touching the
+ * model OR the visitor's rate limits. 503, not 429: the visitor did nothing wrong, the upstream free quota
+ * is used up, and 429 is reserved for the visitor's own limits. A per-minute exhaustion is "assistant_busy".
+ */
+export function quotaResponse(e: AssistantQuotaError) {
+  return errorResponse(
+    503,
+    e.code,
+    e.code === "assistant_busy"
+      ? "The assistant is busy for a moment. Please try again shortly."
+      : "The assistant reached today's free limit. Booking through the form still works.",
+    { retryAfterSeconds: e.retryAfterSeconds },
+  );
+}
 
 /** Text stored in messages.content for a voice turn (also what later turns see as history). */
 export function voiceNoteLabel(durationSeconds?: number | null): string {
@@ -58,6 +78,12 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   const model = deps.model ?? (e2eMockEnabled(req.headers) ? await (await import("./mock-model")).mockChatModel(req) : null) ?? undefined;
   if (!model && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return errorResponse(503, "not_configured", "The assistant is not configured yet.");
+  }
+
+  // Real models only (an injected/mock model has its own chain and memo inside runAgent).
+  if (!model) {
+    const exhausted = (deps.quotaMemo ?? sharedQuotaMemo).allBlocked(deps.modelIds ?? modelIdsFromEnv());
+    if (exhausted) return quotaResponse(exhausted);
   }
 
   try {

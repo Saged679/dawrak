@@ -29,7 +29,8 @@
 [dir=rtl] .lp-mark,[dir=rtl] .lp-avatar{border-radius:12px 12px 4px 12px}
 .lp-brand-name{font-family:var(--font-heading);font-weight:700;font-size:1.4rem;line-height:1.4}
 
-.lp-hero{background:var(--cobalt);color:#fff;padding:48px 0 72px}
+.lp-hero{background:var(--cobalt);color:#fff;padding:48px 0 72px;position:relative;overflow:clip}
+.lp-hero>.lp-wrap{position:relative}
 .lp-hero-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:48px;align-items:center}
 .lp-hero h1{font-size:clamp(1.75rem,3.2vw,2.6rem);line-height:1.5;font-weight:700;text-wrap:balance}
 .lp-lead{margin-top:20px;font-size:1.15rem;max-width:34em;color:#e6ecff}
@@ -52,7 +53,7 @@
 
 /* column-reverse keeps the newest message in view without JS */
 .lp-scroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column-reverse;scrollbar-width:thin}
-.lp-thread{padding:14px 12px;display:flex;flex-direction:column;gap:10px}
+.lp-thread{padding:14px 12px;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;min-height:100%}
 .lp-day{align-self:center;font-size:.78rem;background:var(--sky);color:var(--cobalt-deep);padding:2px 12px;border-radius:999px;line-height:1.8}
 .lp-msg{max-width:86%;padding:9px 13px 6px;border-radius:18px;font-size:.96rem;line-height:1.8;position:relative;overflow-wrap:anywhere}
 .lp-msg p+.lp-slots,.lp-msg p+.lp-ticket{margin-top:8px}
@@ -273,6 +274,31 @@
    (data-phase="static") the final-state content is hidden, so it never shows and then resets. */
 @media (scripting:enabled) and (prefers-reduced-motion:no-preference){
   .lp-stage[data-phase="static"] .lp-thread .lp-msg,
+  .lp-stage[data-phase="static"] .lp-thread,
+  .lp-stage[data-phase="static"] .lp-day,
   .lp-stage[data-phase="static"] .lp-live,
   .lp-stage[data-phase="static"] .lp-new{visibility:hidden}
+}
+
+/* ---- motion (tokens and rules: src/app/motion.css, docs/MOTION.md) ---- */
+.lp-btn{transition:transform var(--m-d1) var(--m-ease-out),background-color var(--m-d2),border-color var(--m-d2),box-shadow var(--m-d2)}
+.lp-btn:active{transform:scale(.97)}
+.lp-saffron:hover{box-shadow:0 8px 20px -10px rgba(242,169,59,.9)}
+.lp-topbar::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:0 8px 24px -10px rgba(8,16,60,.55);opacity:0;transition:opacity var(--m-d2) var(--m-ease-out)}
+.lp-topbar[data-elevated]::after{opacity:1}
+.lp-nav a,.lp-switch{transition:background-color var(--m-d2)}
+.lp-faq details[open] p{animation:m-fade-up var(--m-d3) var(--m-ease-out) both}
+.lp-steps li::before{transform-origin:top}
+.lp-chip,.lp-t{transition:background-color var(--m-d2),border-color var(--m-d2),color var(--m-d2)}
+@media (hover:hover){
+  .lp-feats>div,.lp-trio>div,.lp-site,.lp-date,.lp-mini{transition:transform var(--m-d2) var(--m-ease-out),box-shadow var(--m-d2) var(--m-ease-out)}
+  .lp-feats>div:hover,.lp-feats>div:focus-within,.lp-trio>div:hover,.lp-site:hover,.lp-site:focus-within,.lp-date:hover,.lp-mini:hover{transform:translateY(-3px);box-shadow:0 14px 28px -16px rgba(16,28,58,.35)}
+  .lp-feats>div,.lp-trio>div{padding:12px 14px;margin:-12px -14px;border-radius:16px}
+  .lp-feats>div:hover,.lp-trio>div:hover{background:var(--paper)}
+}
+@keyframes lp-line{from{transform:scaleY(0)}to{transform:none}}
+@media (scripting:enabled) and (prefers-reduced-motion:no-preference){
+  .lp-steps li[data-reveal-state="in"]::before{animation:lp-line var(--m-d4) var(--m-ease-out) calc(var(--m-delay,0ms) + var(--m-d3)) both}
+  .lp-steps li[data-reveal-state="in"] .lp-n,.lp-pay li[data-reveal-state="in"] .lp-n{animation:m-pop var(--m-d3) var(--m-ease-spring) calc(var(--m-delay,0ms) + var(--m-d2)) both}
+  .lp-widget[data-reveal-state="in"] .lp-t.lp-sel{animation:m-pulse-once var(--m-d3) var(--m-ease-out) calc(var(--m-d4) + 200ms) 1}
 }

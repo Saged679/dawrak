@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { CheckCircle2, Hourglass } from "lucide-react";
+import { Hourglass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PublicService } from "@/lib/db/public";
 import type { BookingResult } from "@/lib/db/schema";
@@ -53,7 +53,10 @@ export function BookingConfirmation({
         {pending ? (
           <Hourglass className="mt-1 size-6 shrink-0 text-cobalt-deep" aria-hidden />
         ) : (
-          <CheckCircle2 className="mt-1 size-6 shrink-0 text-cobalt" aria-hidden />
+          <svg viewBox="0 0 24 24" className="mt-1 size-6 shrink-0 text-cobalt" aria-hidden="true" data-testid="check-draw" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle className="m-check-circle" pathLength="1" cx="12" cy="12" r="10" />
+            <path className="m-check-tick" pathLength="1" d="m8 12.5 3 3 5-6" />
+          </svg>
         )}
         <div>
           <h2
@@ -70,7 +73,16 @@ export function BookingConfirmation({
         </div>
       </div>
 
-      <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-xl border border-[#EBC88A] bg-saffron-soft p-4 text-sm">
+      <dl className="relative mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-xl border border-[#EBC88A] bg-saffron-soft p-4 text-sm">
+        {!pending ? (
+          <span
+            aria-hidden="true"
+            data-testid="ticket-stamp"
+            className="m-stamp pointer-events-none absolute -top-3 end-3 rounded-md bg-paper border-2 border-cobalt px-2 py-0.5 font-heading text-xs font-bold uppercase tracking-wide text-cobalt"
+          >
+            {t("stamp")}
+          </span>
+        ) : null}
         <dt className="text-muted-foreground">{t("service")}</dt>
         <dd className="font-medium">{serviceName}</dd>
         {providerName ? (

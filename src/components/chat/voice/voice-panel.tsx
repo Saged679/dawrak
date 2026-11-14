@@ -77,7 +77,7 @@ export function VoicePanel({ state, level, draft, reducedMotion, busy, onStop, o
           onCancel();
         }
       }}
-      className="flex items-center gap-2 border-t border-line bg-paper p-3"
+      className="m-fade-up flex items-center gap-2 border-t border-line bg-paper p-3"
     >
       {state.status === "requesting" ? (
         <>
@@ -93,7 +93,7 @@ export function VoicePanel({ state, level, draft, reducedMotion, busy, onStop, o
           <button type="button" onClick={onCancel} aria-label={t("cancel")} className={cn(btn, "border border-line text-ink")}>
             <X className="size-5" aria-hidden />
           </button>
-          <span aria-hidden className={cn("size-3 shrink-0 rounded-full bg-destructive", !reducedMotion && "animate-pulse")} />
+          <span aria-hidden className={cn("size-3 shrink-0 rounded-full bg-destructive", !reducedMotion && "m-rec")} />
           <span className="shrink-0 text-sm font-medium tabular-nums" dir="ltr" data-testid="voice-timer">
             <span aria-hidden>
               {formatClock(state.elapsedMs)} / {formatClock(MAX_VOICE_MS)}
@@ -106,8 +106,8 @@ export function VoicePanel({ state, level, draft, reducedMotion, busy, onStop, o
               : [0.5, 0.8, 1, 0.8, 0.5].map((k, i) => (
                   <i
                     key={i}
-                    style={{ height: `${Math.round(12 + Math.min(1, level * k * 1.4) * 88)}%` }}
-                    className="block w-1 rounded-full bg-cobalt"
+                    style={{ transform: `scaleY(${(0.12 + Math.min(1, level * k * 1.4) * 0.88).toFixed(2)})` }}
+                    className="block h-full w-1 rounded-full bg-cobalt transition-transform duration-(--m-d1) ease-out"
                   />
                 ))}
           </div>

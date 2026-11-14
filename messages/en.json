@@ -99,6 +99,7 @@
     "retry": "Try again",
     "pickAnotherTime": "Pick another time",
     "confirmation": {
+      "stamp": "Confirmed",
       "titleConfirmed": "Your booking is confirmed",
       "titlePending": "Your booking is waiting for payment",
       "leadConfirmed": "You booked {service} at {clinic}. See you soon.",
@@ -141,7 +142,9 @@
       "audio_invalid": "The voice note could not be read. Record it again or type your message.",
       "audio_too_long": "That voice note is too long. Keep it under 25 seconds or type your message.",
       "audio_rate_limited": "You sent many voice notes in a short time. Please type your message or wait a few minutes.",
-      "audio_daily_limit": "Voice notes have reached the daily limit. Please type your message."
+      "audio_daily_limit": "Voice notes have reached the daily limit. Please type your message.",
+      "assistant_quota": "The demo assistant has reached today's free usage limit. The booking form works as usual, so you can book there now.",
+      "assistant_busy": "The assistant is busy for a moment because of many requests. Try again in a minute, or book with the form now."
     },
     "voice": {
       "noteLabel": "Voice note",
@@ -170,6 +173,18 @@
         "too_short": "That recording was too short. Tap the microphone and try again, or type your message.",
         "encode_failed": "The recording could not be prepared. Try again or type your message."
       }
+    },
+    "bookingForm": "Go to the booking form",
+    "tools": {
+      "check_availability": "Checking available times...",
+      "create_booking": "Confirming the booking...",
+      "reschedule_booking": "Moving the appointment...",
+      "cancel_booking": "Cancelling the appointment...",
+      "list_services": "Loading the services...",
+      "list_providers": "Loading the team...",
+      "get_my_appointments": "Looking up your appointments...",
+      "search_knowledge": "Searching the business information...",
+      "generic": "Working on your request..."
     }
   },
   "Auth": {

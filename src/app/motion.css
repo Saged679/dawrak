@@ -1,0 +1,357 @@
+/*
+ * Dawrak motion system. Tokens first, then utilities and keyframes, then the single reduced-motion switch.
+ * Rules (docs/MOTION.md): animate transform/opacity (colour and shadow transitions only on small elements),
+ * never width/height/top/left; directional motion multiplies by --dir (1 in LTR, -1 in RTL); anything that
+ * hides content before JS is gated by @media (scripting: enabled) and (prefers-reduced-motion: no-preference).
+ */
+:root {
+  /* durations */
+  --m-d1: 120ms; /* press, hover */
+  --m-d2: 200ms; /* small state changes, menus */
+  --m-d3: 320ms; /* step and sheet transitions */
+  --m-d4: 500ms; /* reveals, confirmation */
+  /* easing */
+  --m-ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --m-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --m-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --m-ease-spring: cubic-bezier(0.34, 1.35, 0.64, 1); /* a tiny overshoot, used for pops only */
+  /* distances */
+  --m-dist-1: 4px;
+  --m-dist-2: 12px;
+  --m-dist-3: 24px;
+  /* reading direction: LTR 1, RTL -1 */
+  --dir: 1;
+  /* Tailwind utilities (transition-all, transition-colors) read these */
+  --default-transition-duration: var(--m-d2);
+  --default-transition-timing-function: var(--m-ease-out);
+}
+[dir="rtl"] {
+  --dir: -1;
+}
+
+/* Reduced motion: collapse every token. Everything built on tokens becomes instant but still fires
+   transitionend/animationend and still ends in the same final state, so focus and state logic keep working. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --m-d1: 1ms;
+    --m-d2: 1ms;
+    --m-d3: 1ms;
+    --m-d4: 1ms;
+    --m-dist-1: 0px;
+    --m-dist-2: 0px;
+    --m-dist-3: 0px;
+  }
+}
+
+/* ---------- base interactions (every page) ---------- */
+@layer base {
+  :where(a, button, summary, [role="button"], input, select, textarea, label) {
+    transition-property: color, background-color, border-color, box-shadow, opacity, translate, scale;
+    transition-duration: var(--m-d2);
+    transition-timing-function: var(--m-ease-out);
+  }
+  /* press feedback via the individual `scale` property, so it never fights a `transform` utility */
+  :where(button, [role="button"], summary):not(:disabled):active {
+    scale: 0.97;
+    transition-duration: var(--m-d1);
+  }
+  :where(input:not([type="radio"], [type="checkbox"]), select, textarea):focus-visible {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--cobalt) 16%, transparent);
+  }
+  :where(table tbody tr) {
+    transition: background-color var(--m-d2) var(--m-ease-out);
+  }
+  :where(table tbody tr):hover {
+    background-color: color-mix(in srgb, var(--sky) 45%, transparent);
+  }
+}
+
+@layer components {
+/* inline validation: a very small shake, once, when a field becomes invalid */
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  animation: m-shake var(--m-d3) var(--m-ease-in-out) 1;
+}
+@keyframes m-shake {
+  20%, 60% { translate: calc(var(--dir) * -3px) 0; }
+  40%, 80% { translate: calc(var(--dir) * 3px) 0; }
+}
+
+/* ---------- keyframes ---------- */
+@keyframes m-fade-up {
+  from { opacity: 0; transform: translateY(var(--m-dist-2)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes m-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* step transitions: forward enters from the inline-end side, back from the inline-start side */
+@keyframes m-slide-fwd {
+  from { opacity: 0; transform: translateX(calc(var(--dir) * var(--m-dist-3))); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes m-slide-back {
+  from { opacity: 0; transform: translateX(calc(var(--dir) * var(--m-dist-3) * -1)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes m-pop {
+  from { opacity: 0; transform: scale(0.88); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes m-pulse-once {
+  40% { transform: scale(1.06); }
+}
+@keyframes m-bubble-in {
+  from { opacity: 0; transform: translateY(var(--m-dist-2)) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes m-typing {
+  0%, 60%, 100% { opacity: 0.35; transform: none; }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+@keyframes m-rec {
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+@keyframes m-shimmer {
+  to { transform: translateX(calc(var(--dir) * 100%)); }
+}
+@keyframes m-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes m-stamp {
+  0% { opacity: 0; transform: scale(1.7) rotate(calc(var(--dir) * -14deg)); }
+  60% { opacity: 1; transform: scale(0.94) rotate(calc(var(--dir) * -6deg)); }
+  100% { opacity: 1; transform: scale(1) rotate(calc(var(--dir) * -6deg)); }
+}
+@keyframes m-flash {
+  0% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+@keyframes m-progress {
+  from { transform: scaleX(0.04); }
+  to { transform: scaleX(0.9); }
+}
+@keyframes m-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(calc(var(--dir) * -6%), 8%, 0); }
+}
+@keyframes m-send {
+  40% { translate: calc(var(--dir) * 10px) 0; opacity: 0; }
+  41% { translate: calc(var(--dir) * -10px) 0; opacity: 0; }
+  100% { translate: 0 0; opacity: 1; }
+}
+@keyframes m-failsafe {
+  to { opacity: 1; }
+}
+
+/* ---------- utilities ---------- */
+.m-fade-up { animation: m-fade-up var(--m-d3) var(--m-ease-out) both; }
+.m-pop { animation: m-pop var(--m-d2) var(--m-ease-spring) both; }
+.m-bubble-in { animation: m-bubble-in var(--m-d3) var(--m-ease-out) both; }
+.m-bubble-in[data-from="user"] { transform-origin: bottom right; }
+[dir="rtl"] .m-bubble-in[data-from="user"] { transform-origin: bottom left; }
+.m-typing > i { animation: m-typing 1s ease-in-out infinite; }
+.m-typing > i:nth-child(2) { animation-delay: 0.18s; }
+.m-typing > i:nth-child(3) { animation-delay: 0.36s; }
+.m-rec { animation: m-rec 1.1s ease-in-out infinite; }
+.m-send { animation: m-send var(--m-d3) var(--m-ease-in-out) 1; }
+.m-menu { animation: m-pop var(--m-d2) var(--m-ease-out) both; transform-origin: top; }
+
+@keyframes m-sheet-up { from { opacity: 0; transform: translateY(var(--m-dist-3)); } to { opacity: 1; transform: none; } }
+@keyframes m-sheet-down { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(var(--m-dist-3)); } }
+/* the chat is a full-screen sheet below lg only; on desktop it is an inline card and never animates */
+@media (max-width: 1023.98px) {
+  .m-sheet-in { animation: m-sheet-up var(--m-d3) var(--m-ease-out) both; }
+  .m-sheet-out { animation: m-sheet-down var(--m-d2) var(--m-ease-in) both; }
+}
+
+/* booking steps: only after the visitor moved (data-moved), never on first paint */
+[data-moved] .m-step-fwd { animation: m-slide-fwd var(--m-d3) var(--m-ease-out) both; }
+[data-moved] .m-step-back { animation: m-slide-back var(--m-d3) var(--m-ease-out) both; }
+.m-progress-fill {
+  transform-origin: calc(50% - var(--dir) * 50%) 50%;
+  transition: transform var(--m-d3) var(--m-ease-out);
+}
+/* chips: press and selected */
+.m-chip { transition: background-color var(--m-d2), border-color var(--m-d2), color var(--m-d2), transform var(--m-d1) var(--m-ease-out); }
+label:active > .m-chip { transform: scale(0.95); }
+input:checked + .m-chip { animation: m-pulse-once var(--m-d2) var(--m-ease-out) 1; }
+input:disabled + .m-chip { transform: none; }
+
+/* confirmation: check mark draws, ticket stamps */
+.m-check-circle, .m-check-tick {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: m-draw var(--m-d4) var(--m-ease-out) forwards;
+}
+.m-check-tick { animation-delay: calc(var(--m-d4) * 0.5); animation-duration: var(--m-d3); }
+.m-stamp { animation: m-stamp var(--m-d4) var(--m-ease-spring) calc(var(--m-d4) * 0.7) both; }
+
+/* skeletons: shimmer is a translated overlay (transform only) */
+.m-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--sky);
+  border-radius: 0.75rem;
+}
+.m-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.65), transparent);
+  transform: translateX(calc(var(--dir) * -100%));
+  animation: m-shimmer 1.4s ease-in-out infinite;
+}
+
+/* status feedback: an overlay that fades out */
+.m-flash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--saffron);
+  pointer-events: none;
+  opacity: 0;
+  animation: m-flash 1s var(--m-ease-out) 1;
+}
+
+/* sheets and dialogs (Base UI sets data-starting-style / data-ending-style) */
+.m-sheet {
+  transition: transform var(--m-d3) var(--m-ease-out), opacity var(--m-d3) var(--m-ease-out);
+}
+.m-sheet[data-starting-style], .m-sheet[data-ending-style] {
+  transform: translateX(calc(var(--dir) * 100%));
+  opacity: 0.6;
+}
+.m-backdrop { transition: opacity var(--m-d3) linear; }
+.m-backdrop[data-starting-style], .m-backdrop[data-ending-style] { opacity: 0; }
+
+/* navigation progress bar and page fallback entrance */
+.m-navbar {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 3px;
+  z-index: 100;
+  pointer-events: none;
+  background: var(--saffron);
+  transform-origin: calc(50% - var(--dir) * 50%) 50%;
+  animation: m-progress 8s var(--m-ease-out) forwards;
+  transition: opacity var(--m-d3) linear;
+}
+.m-navbar[data-done] { opacity: 0; transform: scaleX(1); animation: none; }
+.m-enter-fallback { animation: m-fade-up var(--m-d3) var(--m-ease-out) both; }
+
+/* View Transitions (React <ViewTransition> assigns the classes). Direction follows --dir, inherited from <html>. */
+::view-transition-old(.m-page-out) {
+  animation: m-fade var(--m-d2) var(--m-ease-in) reverse both;
+}
+::view-transition-new(.m-page-in) {
+  animation: m-slide-fwd var(--m-d3) var(--m-ease-out) both;
+}
+
+/* a navigation that takes longer than 200 ms dims the old content; the new page replaces it */
+@keyframes m-dim { to { opacity: 0.6; } }
+html[data-nav-pending] main { animation: m-dim var(--m-d2) var(--m-ease-out) 200ms both; }
+
+/* arrival of a new item (demo mailbox) */
+.m-arrive { animation: m-fade-up var(--m-d4) var(--m-ease-out) both; }
+.m-arrive::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--saffron);
+  opacity: 0;
+  pointer-events: none;
+  animation: m-flash 1.4s var(--m-ease-out) 1;
+}
+
+/* transform-only entrance for alerts and toasts: the text is never hidden, so it is read at once */
+.m-rise { animation: m-rise var(--m-d3) var(--m-ease-out) both; }
+
+/* calendar blocks: entrance (transform only), hover and press */
+@keyframes m-block { from { transform: translateY(6px) scale(0.97); } to { transform: none; } }
+.m-block {
+  animation: m-block var(--m-d3) var(--m-ease-out) calc(var(--i, 0) * var(--m-d1) * 0.2) both;
+  transition: translate var(--m-d1) var(--m-ease-out), scale var(--m-d1) var(--m-ease-out), box-shadow var(--m-d2), background-color var(--m-d2), border-color var(--m-d2), color var(--m-d2);
+}
+.m-block:hover { translate: 0 -1px; box-shadow: 0 6px 14px -8px rgb(16 28 58 / 0.45); z-index: 20; }
+
+/* sidebar and menu items */
+.m-nav-icon { transition: translate var(--m-d2) var(--m-ease-out); }
+.m-nav-item:hover .m-nav-icon { translate: calc(var(--dir) * 2px) 0; }
+
+/* dashboard top bar gains a shadow once the page scrolls (scroll-driven, no JS; ignored where unsupported) */
+@keyframes m-topbar-shadow { to { opacity: 1; } }
+.m-topbar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: 0 8px 20px -10px rgb(8 16 60 / 0.6);
+  opacity: 0;
+}
+@supports (animation-timeline: scroll()) {
+  .m-topbar::after { animation: m-topbar-shadow linear both; animation-timeline: scroll(root block); animation-range: 0 48px; }
+}
+
+/* status pages: transform-only entrance so the heading is never hidden */
+@keyframes m-rise { from { transform: translateY(var(--m-dist-2)); } to { transform: none; } }
+@keyframes m-rule { from { transform: scaleX(0); } to { transform: none; } }
+.m-status > * { animation: m-rise var(--m-d4) var(--m-ease-out) both; }
+.m-status > *:nth-child(2) { animation-delay: calc(var(--m-d1) * 0.5); transform-origin: calc(50% - var(--dir) * 50%) 50%; animation-name: m-rule; }
+.m-status > *:nth-child(3) { animation-delay: calc(var(--m-d1) * 0.85); }
+.m-status > *:nth-child(4) { animation-delay: calc(var(--m-d1) * 1.2); }
+.m-status > *:nth-child(5) { animation-delay: calc(var(--m-d1) * 1.5); }
+
+}
+
+/* ---------- gated: only where script runs and motion is welcome ---------- */
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  /* JS marks below-the-fold elements "pending", then "in" when they scroll into view. Unmarked = visible. */
+  html .lp [data-reveal-state="pending"], html .lp[data-reveal-state="pending"] { opacity: 0; transform: translateY(var(--m-dist-2)); }
+  html .lp [data-reveal-state="in"], html .lp[data-reveal-state="in"] {
+    opacity: 1;
+    transform: none;
+    transition: opacity var(--m-d4) var(--m-ease-out) var(--m-delay, 0ms),
+      transform var(--m-d4) var(--m-ease-out) var(--m-delay, 0ms);
+  }
+  /* count-ups: the server renders the final value. Until JS takes over it is invisible, with a CSS failsafe
+     that shows it after 1.5 s even if scripts never run. Space is reserved, so there is no layout shift. */
+  [data-count="pending"] { opacity: 0; animation: m-failsafe 0s linear 1.5s forwards; }
+  html:has(.lp) { scroll-behavior: smooth; }
+}
+
+/* decorative ambient motion: hero glow. Removed under reduced motion, paused when offscreen. */
+.lp-hero::before { content: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .lp-hero::before {
+    content: "";
+    position: absolute;
+    inset-inline-end: -8%;
+    inset-block-start: -30%;
+    width: 52%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(242 169 59 / 0.2), transparent);
+    pointer-events: none;
+    will-change: transform;
+    animation: m-drift 28s ease-in-out infinite alternate;
+  }
+  .lp-hero[data-ambient="paused"]::before { animation-play-state: paused; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* decorative and looping things go away entirely; functional indicators keep a static form */
+  .m-skeleton::after, .m-typing > i, .m-rec, .m-navbar { animation: none; }
+  .m-navbar { display: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .m-status > * { animation: none; }
+  .m-check-circle, .m-check-tick { animation: none; stroke-dashoffset: 0; }
+  .m-stamp { animation: none; }
+}

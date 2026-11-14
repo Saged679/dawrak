@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// This file is also bundled for the browser. Zod's JIT fast path probes `new Function`, which the strict CSP
+// (no unsafe-eval) reports as a violation in the console. The interpreter path is plenty fast for these small forms.
+z.config({ jitless: true });
+
 /** Pure helpers shared by the server action, the form and the tests (no server-only import). */
 
 const ARABIC_INDIC = "٠١٢٣٤٥٦٧٨٩";

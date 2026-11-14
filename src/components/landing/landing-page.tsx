@@ -1,6 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import { formatGregorian, formatHijri, type Loc } from "@/components/booking/dates";
 import { Link } from "@/i18n/navigation";
+import { CountUp } from "@/components/motion/count-up";
+import { ScrollReveal } from "@/components/motion/scroll-reveal";
 import { HeroDemo, type HeroCopy } from "./hero-demo";
 import "./landing.css";
 
@@ -77,6 +79,7 @@ export async function LandingPage({ locale }: { locale: Loc }) {
 
   return (
     <div className="lp">
+      <ScrollReveal />
       <a className="lp-skip" href="#main">
         {t("nav.skip")}
       </a>
@@ -264,7 +267,7 @@ export async function LandingPage({ locale }: { locale: Loc }) {
                     {[1, 2, 3].map((n) => (
                       <div key={n}>
                         <dt>{t(`dash.n${n}`)}</dt>
-                        <dd>{t(`dash.n${n}v`)}</dd>
+                        <dd><CountUp text={t(`dash.n${n}v`)} /></dd>
                       </div>
                     ))}
                   </dl>

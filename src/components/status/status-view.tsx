@@ -8,7 +8,7 @@ export const statusButtonClass =
 /** Shared 404 / error layout (option 4: ink on mist, cobalt action, saffron rule). No error details ever. */
 export function StatusView({ code, title, body, children }: { code: string; title: string; body: string; children: ReactNode }) {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-start justify-center gap-4 px-6 py-16">
+    <main className="m-status mx-auto flex w-full max-w-2xl flex-1 flex-col items-start justify-center gap-4 px-6 py-16">
       <p className="font-heading text-sm font-semibold tracking-wide text-cobalt-deep" dir="ltr">
         {code}
       </p>

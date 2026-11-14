@@ -7,6 +7,8 @@ vi.mock("@/lib/reminders/dispatch", () => ({ dispatchDueReminders: (...a: unknow
 vi.mock("@/lib/reminders/store", () => ({ supabaseReminderStore: () => ({}) }));
 vi.mock("@/lib/db/client", () => ({ getServiceClient: () => ({ rpc }) }));
 vi.mock("@/lib/db/public", () => ({ rateLimitOk: (...a: unknown[]) => rateLimitOk(...a) }));
+const reembed = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/agent/reembed", () => ({ reembedMissing: (...a: unknown[]) => reembed(...a) }));
 vi.mock("@/lib/mail", () => ({ mailProviderFor: vi.fn() }));
 vi.mock("@/lib/mail/links", () => ({ manageUrl: vi.fn() }));
 
@@ -21,6 +23,7 @@ describe("/api/cron/reminders", () => {
   beforeEach(() => {
     dispatch.mockReset().mockResolvedValue({ claimed: 1, sent: 1, retried: 0, failed: 0, skipped: 0 });
     rpc.mockReset().mockResolvedValue({ error: null });
+    reembed.mockReset().mockResolvedValue({ embedded: 0, skipped: "no_key" });
     rateLimitOk.mockReset().mockResolvedValue(true);
     vi.stubEnv("CRON_SECRET", SECRET);
   });
@@ -61,12 +64,23 @@ describe("/api/cron/reminders", () => {
   it("200 with the right secret (POST for GitHub Actions, GET for Vercel cron), and runs the dispatcher", async () => {
     const res = await POST(req(`Bearer ${SECRET}`));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, claimed: 1, sent: 1, retried: 0, failed: 0, skipped: 0 });
+    expect(await res.json()).toEqual({ ok: true, claimed: 1, sent: 1, retried: 0, failed: 0, skipped: 0, reembed: { embedded: 0, skipped: "no_key" } });
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect((await GET(req(`Bearer ${SECRET}`))).status).toBe(200);
     expect(dispatch).toHaveBeenCalledTimes(2);
     expect(rpc).toHaveBeenCalledWith("expire_pending_bookings");
     expect(rpc).toHaveBeenCalledWith("purge_demo_outbox");
+  });
+
+  it("the background re-embedding step reports its outcome and can never fail the cron", async () => {
+    reembed.mockResolvedValue({ embedded: 24 });
+    expect(await (await POST(req(`Bearer ${SECRET}`))).json()).toMatchObject({ ok: true, reembed: { embedded: 24 } });
+    reembed.mockResolvedValue({ embedded: 0, skipped: "quota" });
+    expect(await (await POST(req(`Bearer ${SECRET}`))).json()).toMatchObject({ ok: true, reembed: { skipped: "quota" } });
+    reembed.mockRejectedValue(new Error("boom secret"));
+    const res = await POST(req(`Bearer ${SECRET}`));
+    expect(res.status).toBe(200);
+    expect(JSON.stringify(await res.json())).not.toContain("secret");
   });
 
   it("500 without details when the dispatcher throws", async () => {

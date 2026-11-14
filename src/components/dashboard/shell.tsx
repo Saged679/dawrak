@@ -48,7 +48,7 @@ export async function DashboardShell({
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-30 bg-cobalt text-white">
+        <header className="m-topbar sticky top-0 z-30 bg-cobalt text-white">
           <div className="flex min-h-16 items-center gap-3 px-4 sm:px-6">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <span

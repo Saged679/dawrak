@@ -4,6 +4,7 @@ import { useActionState, useCallback, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CalendarCheck, CheckCircle2, Clock, Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { loadSlots, submitBooking } from "@/app/[locale]/c/[slug]/actions";
 import { normalizePhone, type BookingState } from "@/lib/db/schema";
@@ -43,7 +44,7 @@ const fieldClass =
   "block w-full rounded-lg border border-line bg-paper px-3 py-2 text-base text-ink placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-[invalid=true]:border-destructive";
 
 const cardClass =
-  "block rounded-xl border-[1.5px] border-line bg-paper px-4 py-3 text-start transition-colors peer-checked:border-cobalt peer-checked:bg-sky peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50";
+  "m-chip block rounded-xl border-[1.5px] border-line bg-paper px-4 py-3 text-start transition-colors peer-checked:border-cobalt peer-checked:bg-sky peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50";
 
 export function BookingFlow(props: Props) {
   const [resetKey, setResetKey] = useState(0);
@@ -70,6 +71,9 @@ function BookingFlowInner({
   const loc = useLocale() as Loc;
 
   const [step, setStep] = useState<number>(0);
+  // motion only after the visitor has moved: the first paint is never animated
+  const [moved, setMoved] = useState(false);
+  const [backwards, setBackwards] = useState(false);
   const [serviceId, setServiceId] = useState<string>("");
   const [providerKey, setProviderKey] = useState<string>(ANY);
   const [slots, setSlots] = useState<Slot[] | null>(null);
@@ -107,9 +111,11 @@ function BookingFlowInner({
   const goTo = useCallback(
     (n: number) => {
       setDismissed(state);
+      setBackwards(n < step);
+      setMoved(true);
       setStep(n);
     },
-    [state],
+    [state, step],
   );
 
   async function fetchSlots(sId: string, pKey: string) {
@@ -197,6 +203,8 @@ function BookingFlowInner({
         if (step !== STEPS.length - 1) e.preventDefault();
       }}
       noValidate
+      data-moved={moved ? "" : undefined}
+      data-step={STEPS[step]}
       aria-labelledby="booking-title"
       className="min-w-0 rounded-2xl border border-line bg-paper p-4 shadow-sm sm:p-6"
     >
@@ -218,6 +226,12 @@ function BookingFlowInner({
         {t("title")}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">{t("lead")}</p>
+      <div aria-hidden className="mt-3 h-1 overflow-hidden rounded-full bg-sky" data-testid="booking-progress">
+        <div
+          className="m-progress-fill h-full w-full rounded-full bg-cobalt"
+          style={{ transform: `scaleX(${(step + 1) / STEPS.length})` }}
+        />
+      </div>
 
       <ol className="mt-5 flex flex-col gap-3">
         {STEPS.map((key, i) => {
@@ -242,7 +256,7 @@ function BookingFlowInner({
                       done ? "bg-cobalt text-(--brand-fg)" : "bg-sky text-cobalt-deep",
                     )}
                   >
-                    {done ? <CheckCircle2 className="size-4" /> : formatNumber(i + 1, loc)}
+                    {done ? <CheckCircle2 className={cn("size-4", moved && "m-pop")} /> : formatNumber(i + 1, loc)}
                   </span>
                   <div className="min-w-0">
                     <h3 className="font-heading text-base font-medium text-ink">
@@ -270,7 +284,7 @@ function BookingFlowInner({
               </div>
 
               {current ? (
-                <div className="mt-4 min-w-0">
+                <div className={cn("mt-4 min-w-0", backwards ? "m-step-back" : "m-step-fwd")}>
                   {key === "service" ? (
                     <fieldset className="min-w-0">
                       <legend className="sr-only">{t("serviceLegend")}</legend>
@@ -367,6 +381,20 @@ function BookingFlowInner({
                           {t("loadingSlots")}
                         </p>
                       ) : null}
+                      {slotsStatus === "loading" ? (
+                        <div className="mt-3 flex flex-col gap-3" aria-hidden>
+                          <div className="flex gap-2">
+                            <Skeleton className="h-[4.5rem] w-24 rounded-xl" />
+                            <Skeleton className="h-[4.5rem] w-24 rounded-xl" />
+                            <Skeleton className="h-[4.5rem] w-24 rounded-xl" />
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {[0, 1, 2, 3, 4].map((n) => (
+                              <Skeleton key={n} className="h-9 w-20 rounded-full" />
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       {slotsStatus === "error" ? (
                         <div role="alert" className="flex flex-col items-start gap-2 text-sm text-destructive">
                           <p>{t(`errors.${slotsErrorCode}`)}</p>
@@ -438,7 +466,7 @@ function BookingFlowInner({
                                           onChange={() => setSlotStart(s.start)}
                                           className="peer sr-only"
                                         />
-                                        <span className="block rounded-full border-[1.5px] border-line bg-paper px-4 py-1.5 text-sm transition-colors peer-checked:border-cobalt peer-checked:bg-sky peer-checked:font-semibold peer-checked:text-cobalt-deep peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring">
+                                        <span className="m-chip block rounded-full border-[1.5px] border-line bg-paper px-4 py-1.5 text-sm peer-checked:border-cobalt peer-checked:bg-sky peer-checked:font-semibold peer-checked:text-cobalt-deep peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring">
                                           {formatTime(s.start, timezone, loc)}
                                         </span>
                                       </label>

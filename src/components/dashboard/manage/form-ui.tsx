@@ -59,7 +59,7 @@ export function Notice({ msg, testId }: { msg: Msg; testId?: string }) {
       role={msg.kind === "error" ? "alert" : "status"}
       data-testid={testId ?? "form-msg"}
       className={cn(
-        "rounded-lg border px-3 py-2 text-sm",
+        "m-rise rounded-lg border px-3 py-2 text-sm",
         msg.kind === "ok" && "border-[#1d7a5f] bg-[#dff3ec] text-[#0f4d3b]",
         msg.kind === "warn" && "border-[#b8741a] bg-saffron-soft text-[#6b3f00]",
         msg.kind === "error" && "border-[#b3261e] bg-[#fde8e6] text-[#7a1712]",

@@ -9,6 +9,7 @@ import {
   formatNumber,
   type Loc,
 } from "@/components/booking/dates";
+import { CountUp } from "@/components/motion/count-up";
 import { AppointmentList } from "@/components/dashboard/appointment-list";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
@@ -64,7 +65,7 @@ export default async function OverviewPage({ params }: Props) {
         <div className="flex flex-col justify-between gap-3 rounded-2xl bg-cobalt p-6 text-white">
           <p className="text-sm text-white/85">{t("todayCount")}</p>
           <p className="font-heading text-6xl font-bold tabular-nums" data-testid="today-count">
-            {formatNumber(o.today.length, loc)}
+            <CountUp text={formatNumber(o.today.length, loc)} />
           </p>
           <Link
             href="/dashboard/calendar"
@@ -77,14 +78,14 @@ export default async function OverviewPage({ params }: Props) {
           <div className="rounded-2xl border border-line bg-paper p-4">
             <dt className="text-sm text-muted-foreground">{t("weekCount")}</dt>
             <dd className="font-heading text-3xl font-semibold tabular-nums" data-testid="week-count">
-              {formatNumber(o.weekCount, loc)}
+              <CountUp text={formatNumber(o.weekCount, loc)} />
             </dd>
             <dd className="text-xs text-muted-foreground">{t("weekHint")}</dd>
           </div>
           <div className="rounded-2xl border border-line bg-paper p-4">
             <dt className="text-sm text-muted-foreground">{t("noShow")}</dt>
             <dd className="font-heading text-3xl font-semibold tabular-nums" data-testid="no-show">
-              {pct ?? "-"}
+              {pct === null ? "-" : <CountUp text={pct} />}
             </dd>
             <dd className="text-xs text-muted-foreground">
               {pct === null ? t("noShowNone") : t("noShowHint", { n: formatNumber(o.noShow.sample, loc) })}
@@ -94,7 +95,7 @@ export default async function OverviewPage({ params }: Props) {
             <div className="rounded-2xl bg-saffron-soft p-4" data-testid="revenue-card">
               <dt className="text-sm text-[#6b3f00]">{t("revenue")}</dt>
               <dd className="font-heading text-3xl font-semibold tabular-nums">
-                {formatMoney(o.revenue.week, session.tenant.currency, loc)}
+                <CountUp text={formatMoney(o.revenue.week, session.tenant.currency, loc)} />
               </dd>
               <dd className="text-xs text-[#6b3f00]">
                 {t("revenueHint", { month: formatMoney(o.revenue.month, session.tenant.currency, loc) })}
@@ -125,7 +126,7 @@ export default async function OverviewPage({ params }: Props) {
                   {t(k === "pending" ? "remindersPending" : k === "sent" ? "remindersSent" : "remindersFailed")}
                 </dt>
                 <dd className="font-heading text-2xl font-semibold tabular-nums" data-testid={`reminders-${k}`}>
-                  {formatNumber(reminders[k], loc)}
+                  <CountUp text={formatNumber(reminders[k], loc)} />
                 </dd>
               </div>
             ))}

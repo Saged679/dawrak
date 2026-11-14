@@ -41,7 +41,7 @@ export function LoginForm({ locale, next }: { locale: string; next: string }) {
         />
       </label>
       {state.error ? (
-        <p role="alert" className="rounded-lg bg-[#fde8e6] px-3 py-2 text-sm text-[#7a1712]">
+        <p role="alert" className="m-rise rounded-lg bg-[#fde8e6] px-3 py-2 text-sm text-[#7a1712]">
           {t(`errors.${state.error}`)}
         </p>
       ) : null}

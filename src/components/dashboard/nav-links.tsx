@@ -60,13 +60,13 @@ export function NavLinks({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/60",
+                  "m-nav-item flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/60",
                   active
                     ? "bg-sky text-cobalt-deep"
                     : "text-muted-foreground hover:bg-mist hover:text-ink",
                 )}
               >
-                <Icon className="size-4" aria-hidden />
+                <Icon className="m-nav-icon size-4" aria-hidden />
                 {item.label}
               </Link>
             </li>

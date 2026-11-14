@@ -9,6 +9,7 @@ import { routing } from "@/i18n/routing";
 import { readDemoSessionHash } from "@/lib/demo/session";
 import { listMailbox, splitLinks } from "@/lib/demo/mailbox";
 import { MailboxWatcher } from "@/components/demo/mailbox-watcher";
+import { MailboxArrival } from "@/components/demo/mailbox-arrival";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,8 @@ export default async function MailboxPage({ params }: Props) {
         labels={{ waiting: t("waiting"), none: t("noneYet"), found: t("found") }}
       />
 
+      <MailboxArrival ids={rows.map((m) => m.id)} />
+
       {rows.length === 0 ? (
         <div
           data-testid="mailbox-empty"
@@ -74,7 +77,8 @@ export default async function MailboxPage({ params }: Props) {
             <li key={m.id}>
               <article
                 data-testid="mailbox-message"
-                className="min-w-0 rounded-2xl border border-line bg-paper p-4 shadow-sm"
+                data-mid={m.id}
+                className="relative min-w-0 rounded-2xl border border-line bg-paper p-4 shadow-sm"
               >
                 <h2 className="break-words font-heading text-base font-semibold text-ink">{m.subject}</h2>
                 <p className="mt-1 text-xs text-muted-foreground">

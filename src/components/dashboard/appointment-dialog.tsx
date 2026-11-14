@@ -22,11 +22,16 @@ import {
 import { allowedStatusTargets, canReschedule, type Role } from "@/lib/auth/roles";
 import type { StaffErrorCode } from "@/lib/dashboard/errors";
 import type { CalendarItem } from "./calendar-view";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "./status";
 
 type Props = {
   item: CalendarItem | null;
+  /** Stays true until the exit transition has played; `onClosed` then clears the item. */
+  open: boolean;
   onClose: () => void;
+  onClosed: () => void;
+  onStatusChanged: (id: string) => void;
   role: Role;
   timezone: string;
   currency: string;
@@ -39,7 +44,7 @@ type Msg = { kind: "ok" | "error"; text: string } | null;
 const btn =
   "inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/60 disabled:opacity-50";
 
-export function AppointmentDialog({ item, onClose, role, timezone, currency, locale, todayKey }: Props) {
+export function AppointmentDialog({ item, open, onClose, onClosed, onStatusChanged, role, timezone, currency, locale, todayKey }: Props) {
   const td = useTranslations("Calendar.detail");
   const te = useTranslations("Calendar.errors");
   const ts = useTranslations("Dash.status");
@@ -73,7 +78,7 @@ export function AppointmentDialog({ item, onClose, role, timezone, currency, loc
   );
 
   if (!item) {
-    return <Dialog.Root open={false} onOpenChange={() => onClose()} />;
+    return <Dialog.Root open={false} />;
   }
 
   const pick = (n: { name_ar: string; name_en: string | null }) =>
@@ -92,6 +97,7 @@ export function AppointmentDialog({ item, onClose, role, timezone, currency, loc
       const res = await setAppointmentStatus({ appointmentId: item.id, status });
       if (res.ok) {
         setMsg({ kind: "ok", text: td("statusSaved") });
+        onStatusChanged(item.id);
         router.refresh();
       } else {
         fail(res.code);
@@ -133,12 +139,18 @@ export function AppointmentDialog({ item, onClose, role, timezone, currency, loc
     "h-11 w-full rounded-lg border border-line bg-paper px-3 text-base outline-none focus-visible:border-cobalt focus-visible:ring-3 focus-visible:ring-ring/40";
 
   return (
-    <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      onOpenChangeComplete={(o) => {
+        if (!o) onClosed();
+      }}
+    >
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-ink/40" />
+        <Dialog.Backdrop className="m-backdrop fixed inset-0 z-50 bg-ink/40" />
         <Dialog.Popup
           data-testid="appt-dialog"
-          className="fixed inset-y-0 end-0 z-50 flex w-full max-w-md flex-col gap-4 overflow-y-auto border-s border-line bg-paper p-5 text-ink shadow-xl outline-none"
+          className="m-sheet fixed inset-y-0 end-0 z-50 flex w-full max-w-md flex-col gap-4 overflow-y-auto border-s border-line bg-paper p-5 text-ink shadow-xl outline-none"
         >
           <div className="flex items-start justify-between gap-3">
             <Dialog.Title className="font-heading text-xl font-semibold">{td("title")}</Dialog.Title>
@@ -191,9 +203,9 @@ export function AppointmentDialog({ item, onClose, role, timezone, currency, loc
             <p
               role={msg.kind === "error" ? "alert" : "status"}
               className={
-                msg.kind === "error"
-                  ? "rounded-lg bg-[#fde8e6] px-3 py-2 text-sm text-[#7a1712]"
-                  : "rounded-lg bg-[#dff3ec] px-3 py-2 text-sm text-[#0f4d3b]"
+                (msg.kind === "error"
+                  ? "m-rise rounded-lg bg-[#fde8e6] px-3 py-2 text-sm text-[#7a1712]"
+                  : "m-rise rounded-lg bg-[#dff3ec] px-3 py-2 text-sm text-[#0f4d3b]")
               }
               data-testid="dialog-msg"
             >
@@ -271,7 +283,14 @@ export function AppointmentDialog({ item, onClose, role, timezone, currency, loc
                 </label>
                 <div role="group" aria-label={td("slotsLabel")} className="flex flex-col gap-2">
                   {slots === null ? (
-                    <p className="text-sm text-muted-foreground">{td("slotsLoading")}</p>
+                    <>
+                      <p className="text-sm text-muted-foreground">{td("slotsLoading")}</p>
+                      <div className="flex flex-wrap gap-2" aria-hidden>
+                        {[0, 1, 2, 3].map((n) => (
+                          <Skeleton key={n} className="h-11 w-20 rounded-full" />
+                        ))}
+                      </div>
+                    </>
                   ) : slots.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{td("slotsEmpty")}</p>
                   ) : (

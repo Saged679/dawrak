@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AssistantQuotaError } from "@/lib/agent/models";
 import { VOICE, base64Length } from "@/lib/audio/limits";
 import { normalizeAudioType, validateAudio } from "./audio";
 import { ChannelError, type ChannelAdapter, type InboundMessage } from "./types";
@@ -96,6 +97,10 @@ export const webChannel: ChannelAdapter<Request, Response> = {
 
   respond(result, { conversationId }) {
     // AI SDK UI message stream (works with useChat via a custom transport); tool calls are included.
-    return result.toUIMessageStreamResponse({ headers: { "x-conversation-id": conversationId } });
+    return result.toUIMessageStreamResponse({
+      headers: { "x-conversation-id": conversationId },
+      // The stream is already 200 when a model turns out to be out of quota: the widget reads this code.
+      onError: (e) => AssistantQuotaError.find(e)?.code ?? "An error occurred.",
+    });
   },
 };

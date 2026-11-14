@@ -31,7 +31,9 @@ Follow in order. Everything uses free tiers. Steps on hosted dashboards were wri
 | `SUPABASE_SERVICE_ROLE_KEY` | same | secret, server only |
 | `NEXT_PUBLIC_SITE_URL` | your Vercel URL, no trailing slash | used in links, cookies (`secure` when https) |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI Studio | secret; without it chat says "not configured" |
-| `GEMINI_MODEL` | optional | defaults to `gemini-2.5-flash` |
+| `GEMINI_MODEL` | optional | primary model, defaults to `gemini-3.5-flash-lite` |
+| `GEMINI_FALLBACK_MODELS` | optional, comma-separated | tried in order on quota (429) or 404; free quotas are per model and per day: check https://aistudio.google.com/rate-limit |
+| `GEMINI_THINKING` | optional: `minimal`, `low`, `medium`, `high`, `default` | unset = `minimal` on `gemini-3.x-flash-lite`, nothing on other models |
 | `CRON_SECRET` | generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` | min 16 characters; same value in GitHub secrets |
 | `DEMO_MODE` | set `true` for the demo site | exactly `true` |
 | `DEMO_PASSWORD`, `DEMO_*_EMAIL` | leave UNSET | not used by the app any more (each visitor gets a random password); local e2e only |
@@ -91,3 +93,10 @@ Until `MOYASAR_SECRET_KEY` is set, a business with deposits enabled (the demo cl
 - `GOOGLE_GENERATIVE_AI_API_KEY`, `RESEND_API_KEY`: create a new key, update Vercel, redeploy, delete the old one.
 - `DEMO_PASSWORD`: change the password of the six demo users through the Auth Admin API first, then update Vercel and redeploy.
 - Customer magic links rotate by themselves each time a link is issued and expire after 30 days.
+
+## Assistant quota and knowledge search (after deploy)
+
+- Free-tier limits are per model and per day (https://aistudio.google.com/rate-limit). When every model in `GEMINI_MODEL` plus `GEMINI_FALLBACK_MODELS` is exhausted, the chat API answers 503 `assistant_quota` (or `assistant_busy` for a per-minute limit) and the widget points visitors to the booking form. Set at least one fallback model before a demo.
+- Apply migration `20261113000023` (`reset_demo()` under pg-safeupdate; hosted PostgREST rejected the old unconditional `DELETE`), then call `reset_demo()` through the REST RPC endpoint once and confirm it returns 204.
+- Seeded demo knowledge has no embeddings: questions are answered by the lexical fallback immediately, and the 30-minute reminders cron embeds up to 24 missing chunks per run once `GOOGLE_GENERATIVE_AI_API_KEY` is set (check the `reembed` field of the cron response).
+- Real-model checks the automated tests cannot cover (they use mock models): a full Arabic booking ending in "ايوه أكد", no booking claim before the tool succeeds, plain-text replies without Markdown, and first-token latency with the chosen model and `GEMINI_THINKING`.

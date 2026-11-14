@@ -25,7 +25,7 @@ export async function UserMenu({
         <span className="max-w-[7rem] truncate sm:max-w-[10rem]">{name}</span>
         <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
-      <div className="absolute end-0 z-40 mt-2 w-64 rounded-xl border border-line bg-paper p-2 text-ink shadow-lg">
+      <div className="m-menu absolute end-0 z-40 mt-2 w-64 rounded-xl border border-line bg-paper p-2 text-ink shadow-lg">
         <p className="px-3 py-1 text-xs text-muted-foreground">{session.email}</p>
         <p className="px-3 pb-2 text-sm font-medium">{t(`roles.${session.role}`)}</p>
         <div className="border-t border-line pt-1">

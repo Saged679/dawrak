@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatClock, formatTime, type Loc } from "@/components/booking/dates";
 import type { AppointmentStatus, Role } from "@/lib/auth/roles";
@@ -55,6 +55,16 @@ export function CalendarView(props: CalendarViewProps) {
   const t = useTranslations("Calendar");
   const ts = useTranslations("Dash.status");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const flashTimer = useRef<number | undefined>(undefined);
+  // brief highlight on the block whose status just changed
+  function flash(id: string) {
+    setFlashId(null);
+    window.clearTimeout(flashTimer.current);
+    requestAnimationFrame(() => setFlashId(id));
+    flashTimer.current = window.setTimeout(() => setFlashId(null), 1100);
+  }
 
   const all = columns.flatMap((c) => c.items);
   const selected = all.find((i) => i.id === selectedId) ?? null;
@@ -120,7 +130,7 @@ export function CalendarView(props: CalendarViewProps) {
                     {t("emptyDay")}
                   </p>
                 ) : null}
-                {col.items.map((item) => {
+                {col.items.map((item, idx) => {
                   const g = blockGeometry(item.startMin - startHour * 60, item.endMin - startHour * 60, 0, PX_PER_HOUR);
                   const s = STATUS_STYLE[item.status];
                   const Icon = s.icon;
@@ -139,12 +149,16 @@ export function CalendarView(props: CalendarViewProps) {
                         service: pick(item.service),
                         status: label,
                       })}
-                      onClick={() => setSelectedId(item.id)}
-                      style={{ top: g.top, height: g.height }}
+                      onClick={() => {
+                        setSelectedId(item.id);
+                        setDialogOpen(true);
+                      }}
+                      style={{ top: g.top, height: g.height, ["--i" as string]: Math.min(idx, 8) }}
                       className={cn(
-                        "absolute flex flex-col justify-center overflow-hidden rounded-md border border-s-4 px-1.5 text-start text-[11px] leading-snug outline-none focus-visible:z-30 focus-visible:ring-3 focus-visible:ring-ring",
+                        "m-block absolute flex flex-col justify-center overflow-hidden rounded-md border border-s-4 px-1.5 text-start text-[11px] leading-snug outline-none focus-visible:z-30 focus-visible:ring-3 focus-visible:ring-ring",
                         dim ? "end-1 z-0 w-[55%] opacity-80" : "inset-x-1 z-10",
                         s.box,
+                        flashId === item.id && "m-flash",
                       )}
                     >
                       <span className="flex items-center gap-1 font-semibold">
@@ -166,7 +180,10 @@ export function CalendarView(props: CalendarViewProps) {
       <AppointmentDialog
         key={selected?.id ?? "none"}
         item={selected}
-        onClose={() => setSelectedId(null)}
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onClosed={() => setSelectedId(null)}
+        onStatusChanged={flash}
         role={props.role}
         timezone={timezone}
         currency={props.currency}
