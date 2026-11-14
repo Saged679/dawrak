@@ -50,6 +50,8 @@ async function handle(request: NextRequest): Promise<NextResponse> {
 
     const { error: purgeError } = await db.rpc("purge_demo_outbox");
     if (purgeError) console.error("cron_purge_error", purgeError.code ?? "unknown");
+    const { error: chatPurgeError } = await db.rpc("purge_chat_agent_data");
+    if (chatPurgeError) console.error("cron_chat_purge_error", chatPurgeError.code ?? "unknown");
     // Backup for the pg_cron purge: expired demo visitors via the Auth Admin API (idempotent).
     try {
       await purgeExpiredDemoUsers(db);

@@ -70,6 +70,7 @@ describe("/api/cron/reminders", () => {
     expect(dispatch).toHaveBeenCalledTimes(2);
     expect(rpc).toHaveBeenCalledWith("expire_pending_bookings");
     expect(rpc).toHaveBeenCalledWith("purge_demo_outbox");
+    expect(rpc).toHaveBeenCalledWith("purge_chat_agent_data");
   });
 
   it("the background re-embedding step reports its outcome and can never fail the cron", async () => {

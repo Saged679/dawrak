@@ -175,13 +175,22 @@
       }
     },
     "bookingForm": "Go to the booking form",
+    "quick": {
+      "summaryLabel": "Summary to confirm",
+      "label": "Confirm or change the summary",
+      "confirm": "Confirm",
+      "change": "Change",
+      "confirmText": "Confirm",
+      "changeText": "Change"
+    },
     "tools": {
       "check_availability": "Checking available times...",
       "create_booking": "Confirming the booking...",
       "reschedule_booking": "Moving the appointment...",
       "cancel_booking": "Cancelling the appointment...",
-      "list_services": "Loading the services...",
-      "list_providers": "Loading the team...",
+      "prepare_booking": "Preparing the booking summary...",
+      "prepare_reschedule": "Preparing the change summary...",
+      "prepare_cancel": "Preparing the cancellation summary...",
       "get_my_appointments": "Looking up your appointments...",
       "search_knowledge": "Searching the business information...",
       "generic": "Working on your request..."

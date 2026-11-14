@@ -70,16 +70,24 @@ test.describe("chat booking -> demo mailbox", () => {
     expect(slots.length).toBeGreaterThan(0);
     const slot = slots[Math.floor(Math.random() * slots.length)];
     const phone = `+9665${Math.floor(Math.random() * 1e8).toString().padStart(8, "0")}`;
-    const email = `chat-${randomBytes(4).toString("hex")}@example.com`;
+    const email = `chat-${randomBytes(4).toString("hex")}@e2e-mail.dev`; // not a placeholder domain: those are dropped by the server
     phones.push(phone);
-    const cmd = `BOOK ${JSON.stringify({ service_id: service.id, provider_id: slot.slot_provider_id, starts_at: slot.slot_start, full_name: "Chat Tester", phone, email })}`;
+    // the server converts business-local date + time (Asia/Riyadh); the model never does
+    const local = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(slot.slot_start));
+    const p = (t: string) => local.find((x) => x.type === t)!.value;
+    const cmd = `PREPARE ${JSON.stringify({ service_id: service.id, provider_id: slot.slot_provider_id, date: `${p("year")}-${p("month")}-${p("day")}`, time: `${p("hour")}:${p("minute")}`, full_name: "Chat Tester", phone, email })}`;
 
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/en/c/${slug}`, { waitUntil: "networkidle" });
     const chat = page.getByTestId("chat-widget");
     await chat.getByLabel("Your message to the assistant").fill(cmd);
     await chat.getByRole("button", { name: "Send" }).click();
-    const reply = chat.getByText(/RESULT /);
+    // turn 1: prepare -> summary + Confirm / Change quick replies; nothing is booked yet
+    await expect(chat.getByTestId("chat-summary")).toBeVisible({ timeout: 30_000 });
+    expect(await rest(`customers?phone=eq.${encodeURIComponent(phone)}&select=id`)).toEqual([]);
+    // turn 2: the visitor taps Confirm (the mock model then completes the pending action from the server state)
+    await chat.getByTestId("quick-confirm").click();
+    const reply = chat.getByText(/RESULT .*confirmation_email/);
     await expect(reply).toBeVisible({ timeout: 30_000 });
     const text = (await reply.innerText()) ?? "";
     // exactly what the model received: honest about the mailbox, no token, no address

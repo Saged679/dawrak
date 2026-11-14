@@ -2,27 +2,28 @@ import { describe, expect, it } from "vitest";
 import { buildSystemPrompt } from "@/lib/agent/prompt";
 import { runAgent } from "@/lib/agent/run-agent";
 import { TurnState, claimsActionDone, guardReply, looksLikeTechnicalApology } from "@/lib/agent/turn-guard";
-import { CONV, PROVIDER, SERVICE, TENANT, fakeDb, scriptedModel, tenantRow, type Step } from "./helpers";
+import { CONV, TENANT, confirmedMessages, fakeDb, fullTenantRow, pendingCreate, scriptedModel, type Step } from "./helpers";
 
 const tenant = { id: TENANT, name_ar: "عيادة النور", name_en: "Al Noor Clinic", kind: "clinic" as const, timezone: "Asia/Riyadh", currency: "SAR" };
 
 describe("system prompt: honesty and style rules", () => {
   const p = buildSystemPrompt(tenant, "ar");
   it("forbids claiming an action before the tool succeeded and requires calling the tool right after confirmation", () => {
-    expect(p).toMatch(/NEVER say that something is booked, confirmed, cancelled or moved unless the matching tool/);
-    expect(p).toMatch(/IMMEDIATELY/);
+    expect(p).toMatch(/NEVER say that something is booked, confirmed, cancelled or moved unless create_booking, cancel_booking or reschedule_booking returned ok/);
+    expect(p).toMatch(/Wait for their NEXT message/);
+    expect(p).toMatch(/A prepare_ result is only a summary/);
     expect(p).toMatch(/error[\s\S]{0,200}honestly/);
   });
   it("asks for plain text without Markdown and for gender-neutral Arabic", () => {
     expect(p).toMatch(/Plain text only/);
     expect(p).toMatch(/NEVER use Markdown/);
-    expect(p).toMatch(/never assume the visitor's gender/i);
+    expect(p).toMatch(/NEVER assume the visitor's gender/i);
     expect(p).toContain("تودين");
     expect(p).toMatch(/dialect/);
   });
   it("tells the model how to react to rejected tool arguments", () => {
     expect(p).toMatch(/arguments were invalid/);
-    expect(p).toMatch(/never call it a technical problem/);
+    expect(p).toMatch(/not a technical problem/);
   });
 });
 
@@ -94,8 +95,10 @@ describe("guardReply", () => {
 });
 
 describe("premature claim through the real agent loop (mock model)", () => {
-  const good = { service_id: SERVICE, provider_id: PROVIDER, starts_at: "2030-01-01T09:30", full_name: "Sara Ali", phone: "+966500000000" };
-  async function turn(steps: Step[], db = fakeDb({ tables: { tenants: tenantRow }, rpc: { create_public_booking: { error: { code: "23P01", message: "slot_taken" } } } })) {
+  const P = pendingCreate();
+  const good = { confirmation_token: P.token };
+  const state = { chat_agent_state: { state: P.state } };
+  async function turn(steps: Step[], db = fakeDb({ tables: { tenants: fullTenantRow, messages: confirmedMessages, ...state }, rpc: { create_public_booking: { error: { code: "23P01", message: "slot_taken" } } } })) {
     let saved = "";
     const res = await runAgent({
       tenantId: TENANT,
@@ -111,7 +114,7 @@ describe("premature claim through the real agent loop (mock model)", () => {
 
   it("claims 'booked' although create_booking failed: the stored reply is the honest correction", async () => {
     const saved = await turn([
-      { toolCalls: [{ name: "create_booking", input: { ...good, user_confirmed: true } }] },
+      { toolCalls: [{ name: "create_booking", input: good }] },
       { text: "تم حجز موعدك بنجاح" },
     ]);
     expect(saved).not.toMatch(/تم حجز/);
@@ -120,11 +123,11 @@ describe("premature claim through the real agent loop (mock model)", () => {
 
   it("claims 'booked' after the booking tool really succeeded: stored as is", async () => {
     const db = fakeDb({
-      tables: { tenants: tenantRow },
+      tables: { tenants: fullTenantRow, messages: confirmedMessages, ...state },
       rpc: { create_public_booking: { data: { appointment_id: "99999999-9999-4999-8999-999999999999", status: "confirmed", starts_at: "2030-01-01T06:30:00Z", customer_token: null } } },
     });
     const saved = await turn(
-      [{ toolCalls: [{ name: "create_booking", input: { ...good, user_confirmed: true } }] }, { text: "تم حجز موعدك بنجاح" }],
+      [{ toolCalls: [{ name: "create_booking", input: good }] }, { text: "تم حجز موعدك بنجاح" }],
       db,
     );
     expect(saved).toBe("تم حجز موعدك بنجاح");

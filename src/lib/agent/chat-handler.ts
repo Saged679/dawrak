@@ -176,7 +176,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
       locale: inbound.locale,
       history,
       onReply: async (text) => {
-        if (text.trim()) await saveMessage(db, { tenantId: tenant.id, conversationId, role: "assistant", content: text });
+        if (text.trim()) return saveMessage(db, { tenantId: tenant.id, conversationId, role: "assistant", content: text });
       },
       afterBooking,
       deps: { db, model, embedQuery: deps.embedQuery },

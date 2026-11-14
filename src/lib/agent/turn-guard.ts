@@ -11,6 +11,8 @@ export type ToolEvent = { tool: string; kind: "ok" | "fail" | "invalid" };
 
 export class TurnState {
   readonly events: ToolEvent[] = [];
+  /** Server-built summaries (prepare_* results) shown to the visitor this turn. */
+  readonly summaries: string[] = [];
   record(tool: string, kind: ToolEvent["kind"]) {
     this.events.push({ tool, kind });
   }
@@ -29,6 +31,10 @@ export class TurnState {
   }
   bookingSucceeded(): boolean {
     return this.events.some((e) => e.kind === "ok" && (BOOKING_TOOLS as readonly string[]).includes(e.tool));
+  }
+  /** A prepare_ tool succeeded in this turn: the visitor only saw a summary, nothing was done. */
+  preparedOk(): boolean {
+    return this.events.some((e) => e.kind === "ok" && e.tool.startsWith("prepare_"));
   }
   bookingAttemptFailed(): boolean {
     return this.unresolved(BOOKING_TOOLS).length > 0;
@@ -81,7 +87,7 @@ export type GuardOutcome = { text: string; changed: "none" | "apology_replaced" 
 /**
  * What to store as the assistant's final message for this turn.
  *  1. A booking-confirmation claim while no booking tool succeeded in the turn AND a booking tool failed or
- *     was rejected (and nobody fixed it afterwards): replaced by an honest correction. The failed attempt
+ *     was rejected (and nobody fixed it afterwards), or a prepare_ tool only produced a summary: replaced by an honest correction. The failed attempt
  *     is the signal that makes this safe; without any attempt in the turn the claim may be about an
  *     earlier booking ("did my booking go through?"), so only the prompt guards that case.
  *  2. A "technical problem" apology that came from an unresolved input-validation failure: replaced by a
@@ -90,11 +96,60 @@ export type GuardOutcome = { text: string; changed: "none" | "apology_replaced" 
 export function guardReply(text: string, turn: TurnState): GuardOutcome {
   const ar = isArabicText(text);
   const lang = ar ? "ar" : "en";
-  if (!turn.bookingSucceeded() && turn.bookingAttemptFailed() && claimsActionDone(text)) {
+  if (!turn.bookingSucceeded() && (turn.bookingAttemptFailed() || turn.preparedOk()) && claimsActionDone(text)) {
     return { text: NOT_DONE[lang], changed: "claim_replaced" };
   }
   if (turn.hasInvalidUnresolved() && looksLikeTechnicalApology(text)) {
     return { text: NEEDS_REVIEW[lang], changed: "apology_replaced" };
   }
   return { text, changed: "none" };
+}
+
+/** Token-shaped strings (base64url body "." 43-character signature) never reach storage or the dashboard. */
+export function redactTokens(text: string): string {
+  return text.replace(/[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{30,}/g, "[removed]");
+}
+
+const toLatinDigits = (s: string) => s.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+
+/** Clock times (minutes since midnight) and money amounts mentioned in a text. */
+function figures(raw: string): { times: Set<number>; amounts: Set<number> } {
+  const s = toLatinDigits(raw);
+  const times = new Set<number>();
+  for (const m of s.matchAll(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.|ص|م)?(?![\d:])/gi)) {
+    const hasColon = m[2] !== undefined;
+    const suffix = m[3]?.toLowerCase();
+    if (!hasColon && !suffix) continue; // a bare number is not a time
+    let h = Number(m[1]);
+    const min = hasColon ? Number(m[2]) : 0;
+    if (suffix) {
+      const pm = suffix === "pm" || suffix === "p.m." || suffix === "م";
+      if (h < 1 || h > 12) continue;
+      h = (h % 12) + (pm ? 12 : 0);
+    }
+    if (h <= 23 && min <= 59) times.add(h * 60 + min);
+  }
+  const amounts = new Set<number>();
+  for (const m of s.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:sar|riyals?|ريال|ر\.س|﷼)/gi)) amounts.add(Number(m[1].replace(",", ".")));
+  return { times, amounts };
+}
+
+const NEUTRAL = {
+  ar: "راجع الملخص أعلاه، ثم اضغط تأكيد للحجز أو تعديل لتغيير أي شيء.",
+  en: "Please review the summary above, then tap Confirm to book or Change to edit anything.",
+} as const;
+
+/**
+ * After a successful prepare_* the visitor sees the SERVER's summary. If the model's own text names a clock time
+ * or a price that the summary does not contain ("booked for free at 9am"), it contradicts what will happen, so it
+ * is replaced by a fixed neutral sentence. Deliberately narrow: only HH:mm / 9am style times and amounts with a
+ * currency word are compared; dates and other wording are not (a stricter check would flag legitimate text).
+ */
+export function guardPrepareText(text: string, summary: string): string {
+  const lang = isArabicText(summary) ? "ar" : "en";
+  if (!text.trim()) return NEUTRAL[lang];
+  const mine = figures(text);
+  const server = figures(summary);
+  const conflict = [...mine.times].some((t) => !server.times.has(t)) || [...mine.amounts].some((a) => !server.amounts.has(a));
+  return conflict ? NEUTRAL[lang] : text;
 }

@@ -33,8 +33,9 @@ describe("runAgent", () => {
       "check_availability",
       "create_booking",
       "get_my_appointments",
-      "list_providers",
-      "list_services",
+      "prepare_booking",
+      "prepare_cancel",
+      "prepare_reschedule",
       "reschedule_booking",
       "search_knowledge",
     ]);
@@ -65,7 +66,7 @@ describe("runAgent", () => {
       p_service_id: SERVICE,
     });
     // the second model call received the tool result, so the final answer is grounded in it
-    expect(JSON.stringify(d.model.doStreamCalls[1].prompt)).toContain("2030-01-01T06:00:00Z");
+    expect(JSON.stringify(d.model.doStreamCalls[1].prompt)).toContain('"time":"09:00"');
     expect(reply).toBe("Dr is free at 09:00");
   });
 

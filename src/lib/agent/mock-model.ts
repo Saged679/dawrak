@@ -4,7 +4,11 @@ import { e2eMockEnabled } from "./mock-gate";
 /**
  * Offline scripted model for e2e (see mock-gate.ts: env opt-ins plus header, never on Vercel, ALLOW_E2E_MOCKS in production). It exists so Playwright
  * can drive the REAL chat route and tools without Gemini:
- *   user text `BOOK {json}`  -> one create_booking tool call with that input (user_confirmed forced true)
+ *   user text `PREPARE {json}` -> one prepare_booking tool call with that input
+ *   user text `CONFIRM_PENDING` / `Confirm` / `تأكيد` -> the pending action from the CONVERSATION STATE block of the
+ *                             system prompt (the confirmation_token only), i.e. what a well-behaved model does
+ *   user text `BOOKNOW {json}` -> a create_booking call with exactly that input (a misbehaving model: no token)
+ *   user text `BOOK {json}`   -> alias of BOOKNOW (kept for old specs; it is refused by the server now)
  *   after a tool result      -> text `RESULT <the tool result JSON, exactly what the model received>`
  *   user text `QUOTA`        -> fails like Gemini's free-tier 429 RESOURCE_EXHAUSTED (per day); `QUOTA_MINUTE`: per minute
  *   user text `MARKDOWN`     -> a Markdown-formatted reply (widget sanitizer check)
@@ -50,7 +54,10 @@ export async function mockChatModel(req: Request): Promise<LanguageModel | null>
       let tool = false;
       if (last?.role === "tool") {
         const res = (last.content as Part[]).map((c) => JSON.stringify(c.output ?? null)).join(" ");
-        parts.push({ type: "text-start", id: "t1" }, { type: "text-delta", id: "t1", delta: `RESULT ${res}` }, { type: "text-end", id: "t1" });
+        // After a prepare_* result a well-behaved model writes one short sentence; this mock writes a DIFFERENT
+        // paraphrase on purpose, so e2e can prove the visitor sees the SERVER's summary, not the model's words.
+        const delta = res.includes('"summary_text"') ? "Mock paraphrase: I have prepared your appointment, please use the buttons." : `RESULT ${res}`;
+        parts.push({ type: "text-start", id: "t1" }, { type: "text-delta", id: "t1", delta }, { type: "text-end", id: "t1" });
       } else {
         const text = Array.isArray(last?.content)
           ? last.content.map((c) => c.text ?? "").join("")
@@ -64,11 +71,19 @@ export async function mockChatModel(req: Request): Promise<LanguageModel | null>
           );
           return { stream: convertArrayToReadableStream(parts as never[]) };
         }
-        const m = /^BOOK (\{[\s\S]*\})$/.exec(text.trim());
-        if (m) {
+        const system = prompt[0]?.role === "system" ? String(prompt[0].content) : "";
+        const call = (name: string, input: unknown) => {
           tool = true;
-          const input = { ...JSON.parse(m[1]), user_confirmed: true };
-          parts.push({ type: "tool-call", toolCallId: "mock-call-1", toolName: "create_booking", input: JSON.stringify(input) });
+          parts.push({ type: "tool-call", toolCallId: "mock-call-1", toolName: name, input: JSON.stringify(input) });
+        };
+        const prep = /^PREPARE (\{[\s\S]*\})$/.exec(text.trim());
+        const book = /^BOOK(?:NOW)? (\{[\s\S]*\})$/.exec(text.trim());
+        const action = /pending_action: (\w+)/.exec(system)?.[1];
+        const ptoken = /pending_confirmation_token: (\S+)/.exec(system)?.[1];
+        if (prep) call("prepare_booking", JSON.parse(prep[1]));
+        else if (book) call("create_booking", JSON.parse(book[1]));
+        else if (action && ptoken && /^(confirm|confirm_pending|تأكيد)$/i.test(text.trim())) {
+          call(action, { confirmation_token: ptoken });
         } else {
           parts.push(
             { type: "text-start", id: "t1" },

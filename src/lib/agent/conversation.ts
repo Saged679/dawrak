@@ -45,19 +45,36 @@ export async function getOrCreateConversation(
 export async function saveMessage(
   db: AgentDb,
   p: { tenantId: string; conversationId: string; role: "user" | "assistant"; content: string; parts?: unknown },
-) {
-  await db.from("messages").insert({
-    tenant_id: p.tenantId,
-    conversation_id: p.conversationId,
-    role: p.role,
-    content: p.content,
-    parts: p.parts ?? null,
-  });
+): Promise<string | undefined> {
+  const { data } = await db
+    .from("messages")
+    .insert({
+      tenant_id: p.tenantId,
+      conversation_id: p.conversationId,
+      role: p.role,
+      content: p.content,
+      parts: p.parts ?? null,
+    })
+    .select("id")
+    .single();
   await db
     .from("conversations")
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", p.conversationId)
     .eq("tenant_id", p.tenantId);
+  return (data as { id?: string } | null)?.id;
+}
+
+/** created_at (DATABASE clock) of one stored message of this conversation, or null. */
+export async function messageCreatedAt(db: AgentDb, tenantId: string, conversationId: string, id: string): Promise<string | null> {
+  const { data } = await db
+    .from("messages")
+    .select("created_at")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .eq("conversation_id", conversationId)
+    .maybeSingle();
+  return (data as { created_at?: string } | null)?.created_at ?? null;
 }
 
 /** Last user/assistant turns as model messages (oldest first). */
@@ -79,4 +96,35 @@ export async function loadHistory(
     .reverse()
     .filter((m) => m.content.trim().length > 0)
     .map((m) => ({ role: m.role, content: m.content }));
+}
+
+const MAX_VISITOR_MESSAGES = 120;
+
+/**
+ * What the SERVER knows about the visitor's side of this conversation, for the confirmation protocol and the
+ * grounding of personal data: how many visitor messages exist (the current one is already stored by the
+ * channel before the agent runs) and the typed ones. Voice notes count as messages but contribute no text
+ * (their `parts` marks them as audio; the stored content is only a placeholder).
+ */
+export async function loadVisitorMessages(
+  db: AgentDb,
+  tenantId: string,
+  conversationId: string,
+): Promise<{ count: number; texts: string[]; latestCreatedAt: string | null }> {
+  const { data, count } = await db
+    .from("messages")
+    .select("content, parts, created_at", { count: "exact" })
+    .eq("tenant_id", tenantId)
+    .eq("conversation_id", conversationId)
+    .eq("role", "user")
+    .order("created_at", { ascending: false })
+    .limit(MAX_VISITOR_MESSAGES);
+  const desc = (data ?? []) as { content: string; parts: { type?: string } | null; created_at?: string }[];
+  const latestCreatedAt = desc[0]?.created_at ?? null; // newest first
+  const rows = [...desc].reverse();
+  return {
+    latestCreatedAt,
+    count: typeof count === "number" ? count : rows.length,
+    texts: rows.filter((r) => r.parts?.type !== "audio").map((r) => r.content),
+  };
 }

@@ -10,6 +10,7 @@ import { useVoiceRecorder } from "./voice/use-voice-recorder";
 import { VoiceAnnouncer, VoiceErrorNote, VoicePanel } from "./voice/voice-panel";
 import { VoicePlayer } from "./voice/voice-bubble";
 import { cleanAssistantText } from "./sanitize";
+import { findPendingSummary } from "./pending-summary";
 
 type Props = { slug: string; tenantName: string };
 
@@ -46,11 +47,12 @@ const KNOWN_ERRORS = [
 
 const TOOL_NAMES = [
   "check_availability",
+  "prepare_booking",
+  "prepare_reschedule",
+  "prepare_cancel",
   "create_booking",
   "reschedule_booking",
   "cancel_booking",
-  "list_services",
-  "list_providers",
   "get_my_appointments",
   "search_knowledge",
 ] as const;
@@ -125,6 +127,10 @@ export function ChatWidget({ slug, tenantName }: Props) {
         })[0]
       : undefined;
   const toolKey = runningTool && (TOOL_NAMES as readonly string[]).includes(runningTool) ? runningTool : runningTool ? "generic" : null;
+  // The server's own summary of the action awaiting confirmation (tool output, not the model's paraphrase).
+  // Confirm / Change exist only together with this card. Their fixed texts are exactly what the server's
+  // isAffirmative accepts / rejects (see affirmative.ts).
+  const pendingSummary = findPendingSummary(lastMsg as never, busy);
   const showTyping = !toolKey && (status === "submitted" || (status === "streaming" && !lastAssistantHasText));
 
   useEffect(() => {
@@ -192,6 +198,14 @@ export function ChatWidget({ slug, tenantName }: Props) {
     clearError();
     voices.set(clip.url, { base64: clip.base64, peaks: clip.peaks, durationMs: clip.durationMs });
     void sendMessage({ parts: [{ type: "file", mediaType: "audio/wav", url: clip.url }] });
+  }
+
+  function sendQuick(kind: "confirm" | "change") {
+    if (busy) return;
+    clearError();
+    recorder.clearError();
+    setSent((n) => n + 1);
+    void sendMessage({ text: t(kind === "confirm" ? "quick.confirmText" : "quick.changeText") });
   }
 
   function submit(e: React.FormEvent) {
@@ -307,6 +321,37 @@ export function ChatWidget({ slug, tenantName }: Props) {
                   <i key={i} className="size-2 rounded-full bg-cobalt/60" />
                 ))}
               </span>
+            </div>
+          ) : null}
+          {pendingSummary ? (
+            <section
+              aria-label={t("quick.summaryLabel")}
+              data-testid="chat-summary"
+              dir="auto"
+              className="w-[min(92%,24rem)] self-start whitespace-pre-wrap break-words rounded-2xl border border-line bg-paper px-4 py-3 text-[0.95rem] leading-relaxed text-ink shadow-sm"
+            >
+              <span className="sr-only">{t("quick.summaryLabel")}: </span>
+              {pendingSummary}
+            </section>
+          ) : null}
+          {pendingSummary ? (
+            <div role="group" aria-label={t("quick.label")} data-testid="chat-quick-replies" className="flex flex-wrap gap-2 self-start">
+              <button
+                type="button"
+                data-testid="quick-confirm"
+                onClick={() => sendQuick("confirm")}
+                className="rounded-full bg-cobalt px-5 py-2 text-sm font-medium text-(--brand-fg) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                {t("quick.confirm")}
+              </button>
+              <button
+                type="button"
+                data-testid="quick-change"
+                onClick={() => sendQuick("change")}
+                className="rounded-full border border-line bg-paper px-5 py-2 text-sm font-medium text-ink hover:bg-sky focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                {t("quick.change")}
+              </button>
             </div>
           ) : null}
           {errorCode ? (

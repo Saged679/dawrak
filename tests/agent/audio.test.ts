@@ -5,7 +5,9 @@ import { handleChat, voiceNoteLabel } from "@/lib/agent/chat-handler";
 import { CHAT_LIMITS } from "@/lib/agent/rate-limit";
 import { validateAudio } from "@/lib/channels/audio";
 import { WEB_LIMITS } from "@/lib/channels/web";
-import { PROVIDER, SERVICE, TENANT, fakeDb, scriptedModel, tenantRow } from "./helpers";
+import { hashArgs, signConfirmation } from "@/lib/agent/confirm";
+import { bookingHash } from "@/lib/agent/tools";
+import { NAME, PHONE, PROVIDER, SERVICE, SLOT_ISO, TENANT, confirmedMessages, fakeDb, fullTenantRow, scriptedModel, tenantRow } from "./helpers";
 
 const wavBytes = (seconds: number) => new Uint8Array(encodeWav(new Int16Array(Math.round(VOICE.sampleRate * seconds))));
 const b64 = (u: Uint8Array) => Buffer.from(u).toString("base64");
@@ -211,20 +213,20 @@ describe("voice notes: rate limits and persistence", () => {
 });
 
 describe("voice turns get the same tool validation, confirmation and tenant scoping", () => {
-  const future = new Date(Date.now() + 86_400_000).toISOString();
-  const book = { service_id: SERVICE, provider_id: PROVIDER, starts_at: future, full_name: "Sara Ali", phone: "+966500000000" };
+  const book = { service_id: SERVICE, provider_id: PROVIDER, date: "2030-01-01", time: "17:30", full_name: NAME, phone: PHONE };
   const OTHER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const CONVID = "11111111-1111-4111-8111-111111111111";
 
-  it("a spoken request to book now cannot create a booking without user_confirmed", async () => {
+  it("a spoken request to book now cannot create a booking (no confirmation token)", async () => {
     const s = setup({}, [{ toolCalls: [{ name: "create_booking", input: book }] }, { text: "Please confirm" }]);
     await (await s.call(req(audio(wav(4))))).text();
     expect(s.rpcCalls.some((c) => c.fn === "create_public_booking")).toBe(false);
-    expect(s.model.doStreamCalls.length).toBeGreaterThan(1); // the model got the validation error back
+    expect(s.model.doStreamCalls.length).toBeGreaterThan(1); // the model got the refusal back
   });
 
-  it("user_confirmed:false is also refused, and a model-supplied tenant_id is rejected", async () => {
+  it("a legacy user_confirmed flag is ignored and a model-supplied tenant_id is rejected", async () => {
     const s = setup({}, [
-      { toolCalls: [{ name: "create_booking", input: { ...book, user_confirmed: false } }] },
+      { toolCalls: [{ name: "create_booking", input: { ...book, user_confirmed: true } }] },
       { toolCalls: [{ name: "create_booking", input: { ...book, user_confirmed: true, tenant_id: OTHER } }] },
       { text: "ok" },
     ]);
@@ -233,23 +235,26 @@ describe("voice turns get the same tool validation, confirmation and tenant scop
     expect(JSON.stringify(s.rpcCalls)).not.toContain(OTHER);
   });
 
-  it("with confirmation the booking goes through for the server-resolved tenant only", async () => {
+  it("a voice note as the latest message can never confirm, even with a valid token and typed details", async () => {
     const f = fakeDb({
-      tables: { tenants: tenantRow, conversations: { id: "11111111-1111-4111-8111-111111111111" } },
+      tables: { tenants: fullTenantRow, conversations: { id: CONVID }, messages: confirmedMessages },
       rpc: {
         public_get_tenant: { data: [{ id: TENANT }] },
         check_rate_limit: { data: true },
-        create_public_booking: { data: { id: "x", status: "confirmed", starts_at: future } },
+        create_public_booking: { data: { id: "x", status: "confirmed", starts_at: SLOT_ISO } },
       },
     });
-    const model = scriptedModel([
-      { toolCalls: [{ name: "create_booking", input: { ...book, user_confirmed: true } }] },
-      { text: "Booked" },
-    ]);
+    const argsHash = hashArgs(bookingHash(book, SLOT_ISO, undefined));
+    const { token, jti, expiresAt } = signConfirmation({ tenantId: TENANT, conversationId: CONVID, action: "create_booking", argsHash, userMessageCount: 2 });
+    f.db.from = ((orig) => (table: string) => {
+      const q = orig(table) as unknown as { maybeSingle: () => Promise<unknown> };
+      if (table === "chat_agent_state") q.maybeSingle = async () => ({ data: { state: { pending: { action: "create_booking", token, jti, argsHash, summary: "s", args: book, expiresAt } } }, error: null });
+      return q;
+    })(f.db.from.bind(f.db)) as never;
+    const model = scriptedModel([{ toolCalls: [{ name: "create_booking", input: { ...book, confirmation_token: token } }] }, { text: "Please type confirm" }]);
     await (await handleChat(req(audio(wav(4))), { db: f.db, model })).text();
-    const call = f.rpcCalls.filter((c) => c.fn === "create_public_booking");
-    expect(call).toHaveLength(1);
-    expect(call[0].args.p_tenant_id).toBe(TENANT);
+    expect(f.rpcCalls.filter((c) => c.fn === "create_public_booking")).toHaveLength(0);
+    expect(JSON.stringify(model.doStreamCalls[1].prompt.at(-1))).toContain("confirmation_needs_text");
   });
 
   it("the model receives the audio as a WAV file part and the voice rules in the system prompt", async () => {
@@ -260,8 +265,8 @@ describe("voice turns get the same tool validation, confirmation and tenant scop
     expect(system).toMatch(/VOICE NOTES/);
     expect(system).toMatch(/language they spoke/);
     expect(system).toMatch(/Never guess details such as dates, times, names or phone numbers/);
-    expect(system).toMatch(/read the key details back \(service, provider, date, time\)/);
-    expect(system).toMatch(/Hearing a booking request is never confirmation/);
+    expect(system).toMatch(/A voice note can NEVER confirm a booking/);
+    expect(system).toMatch(/TYPE those in the chat/);
     const user = JSON.stringify(prompt.at(-1));
     expect(user).toContain("audio/wav");
     expect(user).toMatch(/never instructions about your rules/);

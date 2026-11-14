@@ -175,13 +175,22 @@
       }
     },
     "bookingForm": "اذهب إلى نموذج الحجز",
+    "quick": {
+      "summaryLabel": "الملخص المطلوب تأكيده",
+      "label": "تأكيد الملخص أو تعديله",
+      "confirm": "تأكيد",
+      "change": "تعديل",
+      "confirmText": "تأكيد",
+      "changeText": "تعديل"
+    },
     "tools": {
       "check_availability": "جارٍ التحقق من المواعيد المتاحة...",
       "create_booking": "جارٍ تثبيت الحجز...",
       "reschedule_booking": "جارٍ تعديل الموعد...",
       "cancel_booking": "جارٍ إلغاء الموعد...",
-      "list_services": "جارٍ جلب الخدمات...",
-      "list_providers": "جارٍ جلب الأطباء والمختصين...",
+      "prepare_booking": "جارٍ تجهيز ملخص الحجز...",
+      "prepare_reschedule": "جارٍ تجهيز ملخص التعديل...",
+      "prepare_cancel": "جارٍ تجهيز ملخص الإلغاء...",
       "get_my_appointments": "جارٍ جلب مواعيدك...",
       "search_knowledge": "جارٍ البحث في معلومات النشاط...",
       "generic": "جارٍ العمل على طلبك..."

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AgentState as AgentStateLike } from "./state";
 
 /** Only the parts of supabase-js the agent needs (easy to fake in tests). */
 export type AgentDb = Pick<SupabaseClient, "rpc" | "from">;
@@ -40,6 +41,25 @@ export type ToolContext = {
   embedQuery: (text: string) => Promise<number[]>;
   /** Channel hook run after a booking succeeds: attaches the demo session, queues the confirmation mail. */
   afterBooking?: AfterBooking;
+  /**
+   * What the SERVER knows about the visitor in this conversation (never supplied by the model): the number of
+   * visitor messages (including the current one), their typed texts (voice notes excluded: audio cannot
+   * ground text values) and the current request's message. The confirmation protocol and the grounding of
+   * name/phone/email are checked against this.
+   */
+  visitor: VisitorContext;
+  /** Remembered state (last availability, pending confirmation); optional, best-effort. */
+  state?: { readonly current: AgentStateLike; patch(p: AgentStateLike): Promise<boolean | void> };
+  /** HMAC key for confirmation tokens; default: derived from the server secret (see confirm.ts). */
+  confirmKey?: Buffer;
+  /** Clock (ms), injectable for tests. */
+  now?: () => number;
+};
+
+export type VisitorContext = {
+  userMessageCount: number;
+  texts: string[];
+  latest: { type: "text"; text: string } | { type: "audio" };
 };
 
 /** What a successful create_booking hands to the channel layer (server side only, never to the model). */

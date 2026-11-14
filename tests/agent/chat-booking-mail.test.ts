@@ -32,31 +32,52 @@ vi.mock("@/lib/customer/portal", () => ({
 
 import { handleChat } from "@/lib/agent/chat-handler";
 import { DEMO_SESSION_COOKIE } from "@/lib/demo/session";
-import { APPT, PROVIDER, SERVICE, TENANT, fakeDb, scriptedModel, tenantRow } from "./helpers";
+import { hashArgs, signConfirmation } from "@/lib/agent/confirm";
+import { bookingHash } from "@/lib/agent/tools";
+import { APPT, DELIVERED_ID, timed, PROVIDER, SERVICE, TENANT, fakeDb, fullTenantRow, scriptedModel } from "./helpers";
 
-const EMAIL = "sara.private@example.org";
+const EMAIL = "sara.private@mail-co.dev";
+const CONVID = "11111111-1111-4111-8111-111111111111";
+const STARTS = "2030-01-01T06:00:00.000Z"; // 09:00 in Asia/Riyadh
 const booking = {
   service_id: SERVICE,
   provider_id: PROVIDER,
-  starts_at: "2030-01-01T09:00:00+03:00",
+  date: "2030-01-01",
+  time: "09:00",
   full_name: "Sara Test",
   phone: "+966512345678",
   email: EMAIL,
-  user_confirmed: true,
+};
+const pendingState = (email: string | undefined) => {
+  const args: Record<string, string> = { ...booking, ...(email ? { email } : {}) } as never;
+  const argsHash = hashArgs(bookingHash(booking, STARTS, email));
+  const { token, jti, expiresAt } = signConfirmation({ tenantId: TENANT, conversationId: CONVID, action: "create_booking", argsHash, userMessageCount: 1 });
+  return { token, state: { pending: { action: "create_booking", token, jti, argsHash, summary: "s", args, expiresAt, delivered_message_id: DELIVERED_ID } } };
 };
 
 function run(opts: { demo: boolean; token?: string | null; cookie?: string; email?: string }) {
+  const P = pendingState((opts.email ?? EMAIL).toLowerCase());
   const f = fakeDb({
-    tables: { tenants: tenantRow, conversations: { id: "11111111-1111-4111-8111-111111111111" }, customers: { id: "cust-1" } },
+    tables: {
+      tenants: fullTenantRow,
+      conversations: { id: CONVID },
+      customers: { id: "cust-1" },
+      chat_agent_state: { state: P.state },
+      messages: timed([
+        { role: "user", content: `I am Sara Test, phone +966512345678, email ${opts.email ?? EMAIL}`, parts: null },
+        { id: DELIVERED_ID, role: "assistant", content: "summary", parts: null },
+        { role: "user", content: "yes book it", parts: null },
+      ]),
+    },
     rpc: {
       public_get_tenant: { data: [{ id: TENANT, slug: "al-noor", is_demo: opts.demo }] },
       check_rate_limit: { data: true },
       create_public_booking: {
-        data: { appointment_id: APPT, status: "confirmed", starts_at: booking.starts_at, customer_token: opts.token === undefined ? TOKEN : opts.token },
+        data: { appointment_id: APPT, status: "confirmed", starts_at: STARTS, customer_token: opts.token === undefined ? TOKEN : opts.token },
       },
     },
   });
-  const model = scriptedModel([{ toolCalls: [{ name: "create_booking", input: { ...booking, email: opts.email ?? EMAIL } }] }, { text: "Booked." }]);
+  const model = scriptedModel([{ toolCalls: [{ name: "create_booking", input: { confirmation_token: P.token } }] }, { text: "Booked." }]);
   const req = new Request("http://localhost/api/chat", {
     method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": "9.9.9.9", ...(opts.cookie ? { cookie: opts.cookie } : {}) },

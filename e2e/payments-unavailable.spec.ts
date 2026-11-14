@@ -70,7 +70,10 @@ test.describe("deposit clinic without a payment provider", () => {
     })) as { slot_provider_id: string; slot_start: string }[];
     expect(slots.length).toBeGreaterThan(0);
     const e164 = `+9665${Math.floor(Math.random() * 1e8).toString().padStart(8, "0")}`;
-    const cmd = `BOOK ${JSON.stringify({ service_id: service.id, provider_id: slots[0].slot_provider_id, starts_at: slots[0].slot_start, full_name: "Chat NoPay", phone: e164 })}`;
+    const lp = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(slots[0].slot_start));
+    const g = (t: string) => lp.find((x) => x.type === t)!.value;
+    // prepare_booking refuses BEFORE asking the visitor to confirm: no summary, no token, no booking
+    const cmd = `PREPARE ${JSON.stringify({ service_id: service.id, provider_id: slots[0].slot_provider_id, date: `${g("year")}-${g("month")}-${g("day")}`, time: `${g("hour")}:${g("minute")}`, full_name: "Chat NoPay", phone: e164 })}`;
 
     await sendChat(page, cmd);
     const reply = page.getByTestId("chat-widget").getByText(/RESULT /);
@@ -78,6 +81,8 @@ test.describe("deposit clinic without a payment provider", () => {
     const text = await reply.innerText();
     expect(text).toContain('"error":"payments_unavailable"');
     expect(text).toContain('"ok":false');
+    expect(text).toContain("NO booking was made");
+    expect(text).not.toContain("confirmation_token");
     expect(text).not.toContain("pay_url");
     expect(text).not.toContain("appointment_id");
 

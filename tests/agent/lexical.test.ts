@@ -76,41 +76,74 @@ describe("lexicalSearch", () => {
   });
 });
 
+import { visitorOf } from "./helpers";
+
 function ctx(db: AgentDb, embedQuery: ToolContext["embedQuery"]): ToolContext {
-  return { db, tenantId: TENANT, conversationId: CONV, timezone: "Asia/Riyadh", locale: "ar", embedQuery };
+  return { db, tenantId: TENANT, conversationId: CONV, timezone: "Asia/Riyadh", locale: "ar", embedQuery, visitor: visitorOf() };
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const search = (c: ToolContext, query: string): Promise<any> => (createTools(c).search_knowledge as any).execute({ query }, { toolCallId: "t", messages: [] });
 
-describe("search_knowledge: semantic first, lexical fallback", () => {
+describe("search_knowledge: hybrid (semantic + lexical, fused)", () => {
   const rows = KB.map((k) => ({ ...k }));
   const vec = async () => Array(768).fill(0.01);
+  const sem = (id: string, content: string, similarity: number) => ({ id, content, similarity });
 
-  it("uses the semantic result when it has usable matches", async () => {
-    const f = fakeDb({ tables: { kb_chunks: rows }, rpc: { match_kb_chunks: { data: [{ content: "semantic hit", similarity: 0.8 }] } } });
+  it("a strong semantic hit with every chunk embedded needs no lexical pass", async () => {
+    const f = fakeDb({ tables: { kb_chunks: rows, "kb_chunks:null": [] }, rpc: { match_kb_chunks: { data: [sem("hours", "semantic hit", 0.8)] } } });
     const r = await search(ctx(f.db, vec), "hours");
-    expect(r).toMatchObject({ ok: true, source: "semantic" });
-    expect(r.lexical).toBeUndefined();
-    expect(r.results[0].content).toBe("semantic hit");
+    expect(r).toMatchObject({ ok: true, untrusted_data: true });
+    expect(r.results[0]).toMatchObject({ content: "semantic hit", source: "semantic", similarity: 0.8 });
+  });
+
+  it("ANY unembedded chunk triggers the lexical pass: one irrelevant semantic hit no longer hides the hours chunk", async () => {
+    const f = fakeDb({
+      tables: { kb_chunks: rows, "kb_chunks:null": [{ id: "x" }] },
+      rpc: { match_kb_chunks: { data: [sem("en-parking", KB[3].content, 0.82)] } },
+    });
+    const r = await search(ctx(f.db, vec), "ما هي ساعات العمل؟");
+    const contents = r.results.map((x: { content: string }) => x.content);
+    expect(contents.some((c: string) => c.includes("ساعات العمل"))).toBe(true);
+    expect(r.results.find((x: { content: string }) => x.content.includes("ساعات العمل")).source).toBe("lexical");
+    expect(r.results.find((x: { content: string }) => x.content.includes("parking")).source).toBe("semantic");
+  });
+
+  it("a weak semantic top score (below 0.6) also triggers it", async () => {
+    const f = fakeDb({ tables: { kb_chunks: rows, "kb_chunks:null": [] }, rpc: { match_kb_chunks: { data: [sem("en-parking", KB[3].content, 0.5)] } } });
+    const r = await search(ctx(f.db, vec), "ما هي ساعات العمل؟");
+    expect(r.results.some((x: { content: string }) => x.content.includes("ساعات العمل"))).toBe(true);
+  });
+
+  it("the same chunk found by both is merged once and marked both", async () => {
+    const f = fakeDb({ tables: { kb_chunks: rows, "kb_chunks:null": [{ id: "x" }] }, rpc: { match_kb_chunks: { data: [sem("hours", KB[0].content, 0.9)] } } });
+    const r = await search(ctx(f.db, vec), "ما هي ساعات العمل؟");
+    expect(r.results.filter((x: { content: string }) => x.content.includes("ساعات العمل"))).toHaveLength(1);
+    expect(r.results[0]).toMatchObject({ source: "both", score: 1 });
+  });
+
+  it("similarities under the 0.45 noise floor are dropped (0.3 let unrelated chunks through)", async () => {
+    const f = fakeDb({ tables: { kb_chunks: rows, "kb_chunks:null": [] }, rpc: { match_kb_chunks: { data: [sem("en-parking", KB[3].content, 0.35)] } } });
+    const r = await search(ctx(f.db, vec), "quantum chromodynamics");
+    expect(r.results).toEqual([]);
   });
 
   it.each([
     ["no embedded chunks (empty RPC result)", { rpc: { match_kb_chunks: { data: [] } }, embed: vec }],
-    ["only weak semantic matches", { rpc: { match_kb_chunks: { data: [{ content: "meh", similarity: 0.1 }] } }, embed: vec }],
-    ["embedding call failed / quota", { rpc: { match_kb_chunks: { data: [{ content: "never", similarity: 0.9 }] } }, embed: async () => { throw Object.assign(new Error("quota"), { statusCode: 429 }); } }],
+    ["embedding call failed / quota", { rpc: { match_kb_chunks: { data: [sem("a", "never", 0.9)] } }, embed: async () => { throw Object.assign(new Error("quota"), { statusCode: 429 }); } }],
     ["match RPC error", { rpc: { match_kb_chunks: { error: { message: "boom" } } }, embed: vec }],
-  ])("falls back to lexical: %s", async (_n, c) => {
+  ])("lexical still answers: %s", async (_n, c) => {
     const f = fakeDb({ tables: { kb_chunks: rows }, rpc: c.rpc as never });
     const r = await search(ctx(f.db, c.embed), "ما هي ساعات العمل؟");
-    expect(r).toMatchObject({ ok: true, source: "lexical", lexical: true, untrusted_data: true });
+    expect(r).toMatchObject({ ok: true, untrusted_data: true });
+    expect(r.results[0]).toMatchObject({ source: "lexical" });
     expect(r.note).toMatch(/keyword/);
     expect(r.results[0].content).toContain("ساعات العمل");
   });
 
-  it("lexical with nothing relevant returns an empty list, still flagged lexical", async () => {
+  it("nothing relevant returns an empty list", async () => {
     const f = fakeDb({ tables: { kb_chunks: rows }, rpc: { match_kb_chunks: { data: [] } } });
     const r = await search(ctx(f.db, vec), "quantum chromodynamics");
-    expect(r).toMatchObject({ ok: true, lexical: true, results: [] });
+    expect(r).toMatchObject({ ok: true, results: [] });
   });
 });
 
@@ -135,22 +168,39 @@ if (URL_ && KEY && /127\.0\.0\.1|localhost/.test(URL_)) {
 }
 
 describe.skipIf(!reachable)("seeded demo data (local DB, chunks have no embeddings)", () => {
-  it("'ساعات العمل' finds the hours chunk lexically, and the English question finds it too", async () => {
-    const db = createClient(URL_!, KEY!, { auth: { persistSession: false } }) as unknown as AgentDb;
-    const { data: t } = await db.from("tenants").select("id").eq("slug", "demo-clinic").single();
-    const tenantId = (t as { id: string }).id;
-    const { count } = await (db as unknown as ReturnType<typeof createClient>)
-      .from("kb_chunks")
-      .select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId)
-      .not("embedding", "is", null);
-    // the premise of the bug: reset_demo() seeds chunks without embeddings
-    expect(count).toBe(0);
-    const c: ToolContext = { db, tenantId, conversationId: CONV, timezone: "Asia/Riyadh", locale: "ar", embedQuery: async () => Array(768).fill(0) };
+  const client = () => createClient(URL_!, KEY!, { auth: { persistSession: false } });
+  const tenantIdOf = async () => {
+    const { data: t } = await client().from("tenants").select("id").eq("slug", "demo-clinic").single();
+    return (t as { id: string }).id;
+  };
+
+  it("the Arabic hours question finds the hours chunk, and the English question finds it too", async () => {
+    const db = client() as unknown as AgentDb;
+    const tenantId = await tenantIdOf();
+    const c: ToolContext = { ...ctx(db, async () => Array(768).fill(0)), tenantId };
     const ar = await search(c, "ما هي ساعات العمل؟");
-    expect(ar.source).toBe("lexical");
+    expect(ar.results[0].source).toBe("lexical");
     expect(ar.results[0].content).toContain("ساعات العمل: من الأحد إلى الخميس");
     const en = await search(c, "What are your opening hours?");
     expect(en.results[0].content).toContain("ساعات العمل");
+  });
+
+  it("REGRESSION: with ONE unrelated chunk embedded (strong semantic hit), the hours chunk is still found", async () => {
+    const sb = client();
+    const tenantId = await tenantIdOf();
+    const { data: chunks } = await sb.from("kb_chunks").select("id, content").eq("tenant_id", tenantId).order("chunk_index");
+    const unrelated = (chunks as { id: string; content: string }[]).find((x) => !x.content.includes("ساعات العمل"))!;
+    const vector = `[${Array(768).fill(0.05).join(",")}]`;
+    const { error } = await sb.from("kb_chunks").update({ embedding: vector }).eq("id", unrelated.id);
+    expect(error).toBeNull();
+    try {
+      const c: ToolContext = { ...ctx(sb as unknown as AgentDb, async () => Array(768).fill(0.05)), tenantId };
+      const r = await search(c, "ما هي ساعات العمل؟");
+      const contents = r.results.map((x: { content: string }) => x.content);
+      expect(contents.some((x: string) => x.includes("ساعات العمل: من الأحد إلى الخميس"))).toBe(true);
+      expect(r.results.map((x: { source: string }) => x.source)).toContain("semantic");
+    } finally {
+      await sb.from("kb_chunks").update({ embedding: null }).eq("id", unrelated.id);
+    }
   });
 });
