@@ -55,6 +55,7 @@ Never set `DAWRAK_MOCK_EMBEDDINGS`, `ALLOW_FAKE_PAYMENTS` or `FAKE_WEBHOOK_SECRE
 - [ ] GitHub pauses scheduled workflows after 60 days without repository activity; re-enable or push a commit.
 
 ## 6. Moyasar test mode
+Until `MOYASAR_SECRET_KEY` is set, a business with deposits enabled (the demo clinic) refuses bookings with the message "Online payment is not available yet for this clinic" (web form and chat); nothing is created and no slot is held. Businesses without a deposit (the demo salon) keep working. This is expected, not an outage.
 - [ ] Put the `sk_test_` key in `MOYASAR_SECRET_KEY`.
 - [ ] Moyasar dashboard, Webhooks, add: URL `<site>/api/webhooks/moyasar`, Secret Token = your `MOYASAR_WEBHOOK_SECRET`, payment events.
 - [ ] Moyasar sends a `webhook_verification` event with a 6-digit code. The app logs it (Vercel, Logs, search `payment_webhook_verification_code`). Enter it in Moyasar to activate the webhook.

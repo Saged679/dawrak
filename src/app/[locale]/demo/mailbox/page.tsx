@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Info, Inbox } from "lucide-react";
+import { Info, Inbox, RefreshCw } from "lucide-react";
 import { NOINDEX } from "@/lib/seo/metadata";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { readDemoSessionHash } from "@/lib/demo/session";
 import { listMailbox, splitLinks } from "@/lib/demo/mailbox";
+import { MailboxWatcher } from "@/components/demo/mailbox-watcher";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,14 @@ export default async function MailboxPage({ params }: Props) {
           <span>{t("notice")}</span>
         </p>
       </header>
+
+      {/* the mail is queued after the booking response: an empty mailbox is watched for a short while */}
+      <MailboxWatcher
+        key={rows.length}
+        initialCount={rows.length}
+        active={!!hash && rows.length === 0}
+        labels={{ waiting: t("waiting"), none: t("noneYet"), found: t("found") }}
+      />
 
       {rows.length === 0 ? (
         <div
@@ -94,7 +103,16 @@ export default async function MailboxPage({ params }: Props) {
         </ol>
       )}
 
-      <p>
+      <p className="flex flex-wrap items-center gap-x-4">
+        {/* no-JS fallback: a plain link back to this page (a GET, nothing is changed) */}
+        <Link
+          href="/demo/mailbox"
+          data-testid="mailbox-refresh"
+          className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-cobalt underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <RefreshCw className="size-4" aria-hidden />
+          {t("refresh")}
+        </Link>
         <Link
           href="/demo"
           className="inline-flex min-h-11 items-center rounded-md px-2 text-cobalt underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"

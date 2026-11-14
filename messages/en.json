@@ -88,6 +88,7 @@
       "too_far": "You cannot book more than 90 days ahead. Pick an earlier date.",
       "too_many_bookings": "This number already has the maximum number of upcoming bookings. Contact the business to change one.",
       "phone_limit": "Too many booking attempts for this phone number today. Try again tomorrow or contact the business.",
+      "payments_unavailable": "Online payment is not available yet for this clinic, so we cannot take a deposit booking right now. Please contact the clinic directly.",
       "rate_limited": "Too many attempts in a short time. Wait a few minutes and try again.",
       "try_again": "Many people are booking right now. Please try again in a moment.",
       "invalid": "Check your details and try again.",
@@ -775,7 +776,11 @@
     "emptyTitle": "No messages yet",
     "emptyBody": "Book an appointment with an e-mail address, or ask for a link from the appointments page of a demo clinic, and the e-mail shows up here.",
     "to": "To",
-    "backToDemo": "Back to the demo page"
+    "backToDemo": "Back to the demo page",
+    "waiting": "Waiting for your email…",
+    "noneYet": "No emails yet",
+    "found": "Your email arrived",
+    "refresh": "Refresh"
   },
   "Landing": {
     "meta": {

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { createDepositPayment } from "@/lib/payments/booking";
+import { depositPaymentsBlocked } from "@/lib/payments/availability";
 import { getClientIp } from "@/lib/db/client-ip";
 import { PHONE_BOOKING_LIMIT, phoneBookingKey } from "@/lib/security/phone-limit";
 import { sendBookingEmail } from "@/lib/customer/emails";
@@ -102,6 +103,9 @@ export async function submitBooking(
     }
     const tenant = await getTenantBySlug(parsed.data.slug);
     if (!tenant) return { status: "error", code: "not_found" };
+    // A deposit booking needs a usable payment provider. Decide that BEFORE the phone limit is consumed
+    // or a slot is held: nothing is created, the visitor gets an honest message.
+    if (depositPaymentsBlocked(tenant)) return { status: "error", code: "payments_unavailable" };
     // L4: per-phone daily cap (hashed key), before anything is created
     if (!(await rateLimitOk(phoneBookingKey(tenant.id, parsed.data.phone), PHONE_BOOKING_LIMIT.max, PHONE_BOOKING_LIMIT.window))) {
       return { status: "error", code: "phone_limit" };

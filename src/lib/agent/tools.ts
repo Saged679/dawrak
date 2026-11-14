@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { createDepositPayment, type DepositTenant } from "@/lib/payments/booking";
+import { depositPaymentsBlocked } from "@/lib/payments/availability";
 import { phoneBookingAllowed } from "@/lib/security/phone-limit";
 import type { BookingMailOutcome, ToolContext } from "./types";
 
@@ -43,6 +44,8 @@ const KNOWN_ERRORS: Record<string, string> = {
   phone_booking_limit:
     "This phone number has reached today's limit of booking attempts. Do not retry; suggest trying again tomorrow or contacting the business directly.",
   invalid_status: "That appointment cannot be changed in its current status (for example already cancelled or completed).",
+  payments_unavailable:
+    "Online payment is not set up for this business yet, so a booking that needs a deposit cannot be made. NO appointment was created and no slot is held. Tell the customer this plainly, apologise, and suggest contacting the business directly. Do not retry and do not say a booking exists.",
   forbidden: "This action is not allowed. Do not retry; suggest contacting the business directly.",
 };
 
@@ -295,6 +298,17 @@ export function createTools(ctx: ToolContext) {
       }),
       execute: (a) =>
         safe(async () => {
+          // A deposit business with no usable payment provider cannot take a booking: decide before the
+          // phone limit is consumed or anything is created.
+          const { data: trow } = await ctx.db
+            .from("tenants")
+            .select("is_demo, deposit_enabled")
+            .eq("id", ctx.tenantId)
+            .maybeSingle();
+          const tenantFlags = trow as { is_demo: boolean; deposit_enabled: boolean } | null;
+          if (tenantFlags && depositPaymentsBlocked(tenantFlags)) {
+            return mapDbError({ message: "payments_unavailable" });
+          }
           // L4: per-phone daily cap, checked before anything is created.
           if (!(await phoneBookingAllowed(ctx.db, ctx.tenantId, a.phone))) {
             return mapDbError({ message: "phone_booking_limit" });

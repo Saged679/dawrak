@@ -12,6 +12,7 @@ It is a portfolio project built to run entirely on free tiers. Arabic (right-to-
 - **Knowledge base**: the owner adds FAQs, free text or PDFs (text is extracted on the server, split into chunks, embedded with Gemini and stored with pgvector). The assistant answers business questions from those chunks.
 - **Dashboard** with three roles: owner (everything), receptionist (everything except revenue, settings, knowledge base and catalogue editing), provider (own appointments and the customers on them). Pages: overview, calendar, customers, services, providers (with working hours and time off), knowledge, conversations, revenue, settings (name, logo, brand colour, timezone, currency, deposit rule).
 - **Deposits** through Moyasar (hosted invoice page, test mode), behind a `PaymentProvider` interface. An unpaid booking is held for 15 minutes. Webhooks are authenticated and the payment is re-fetched from the provider before anything is confirmed.
+- **No provider, no deposit booking.** A business that asks for a deposit refuses the booking up front, with a clear message on the booking form and an honest `payments_unavailable` answer in the chat, until a payment provider is configured. Nothing is created, no slot is held and the phone booking limit is not used. A deposit booking is never confirmed without payment.
 - **Reminders and patient page**: confirmed appointments get 24h and 2h reminder emails with a magic link to a page where the customer can cancel or reschedule (until 2 hours before the start). A customer can also ask for a fresh link.
 - **Hijri dates** shown next to Gregorian dates (Umm al-Qura calendar via `Intl`).
 - **Demo mode** with one-click sign-in as clinic owner, clinic receptionist or salon owner. Every visitor gets their own temporary account (deleted after 24 hours), a per-visitor demo mailbox instead of real email, a read-mostly demo business (seeded services, doctors, hours and knowledge are locked), abuse caps on demo data, and a daily reset.
@@ -79,7 +80,7 @@ Requirements: Node.js 20.9 or newer (required by Next.js 16; `package.json` has 
 | Database tests (pgTAP: RLS, grants, booking, payments, reminders, demo protection) | `npx supabase test db` |
 | Concurrency check for double booking (local stack only, refuses other URLs) | `node scripts/race-test.mjs [rounds]` |
 
-The Playwright config sets its own demo, fake-payment and cron env vars for the server it starts.
+The Playwright config sets its own demo, fake-payment and cron env vars for the server it starts. It also starts a second server on port 3001 with no payment provider at all, used only by `e2e/payments-unavailable.spec.ts`.
 
 ## Free-tier deployment
 

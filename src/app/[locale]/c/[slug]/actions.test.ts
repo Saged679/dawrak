@@ -135,14 +135,32 @@ describe("submitBooking", () => {
     });
     afterEach(() => vi.unstubAllEnvs());
 
-    it("a non-demo tenant never gets a fake payment: no payment row, no redirect", async () => {
-      tenantRow.v = { id: "t1", slug: "demo", is_demo: false, deposit_type: "fixed", deposit_value: 50 };
+    it("a non-demo tenant never gets a fake payment: refused up front, nothing created, no limit consumed", async () => {
+      tenantRow.v = { id: "t1", slug: "demo", is_demo: false, deposit_enabled: true, deposit_type: "fixed", deposit_value: 50 };
       const res = await submitBooking({ status: "idle" } as never, form());
-      expect(res.status).toBe("success");
+      expect(res).toEqual({ status: "error", code: "payments_unavailable" });
+      expect(createBooking).not.toHaveBeenCalled();
       expect(created.v).toHaveLength(0);
     });
+    it("production without any provider: refused with payments_unavailable before createBooking", async () => {
+      vi.stubEnv("PAYMENT_PROVIDER", "");
+      vi.stubEnv("MOYASAR_SECRET_KEY", "");
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("VERCEL_ENV", "production");
+      tenantRow.v = { id: "t1", slug: "demo", is_demo: true, deposit_enabled: true, deposit_type: "fixed", deposit_value: 50 };
+      const res = await submitBooking({ status: "idle" } as never, form());
+      expect(res).toEqual({ status: "error", code: "payments_unavailable" });
+      expect(createBooking).not.toHaveBeenCalled();
+    });
+    it("a no-deposit tenant is unaffected when no provider is configured", async () => {
+      vi.stubEnv("PAYMENT_PROVIDER", "");
+      tenantRow.v = { id: "t1", slug: "demo", is_demo: false, deposit_enabled: false, deposit_type: null, deposit_value: null };
+      createBooking.mockResolvedValue({ ...held, booking: { ...held.booking, status: "confirmed" } });
+      const res = await submitBooking({ status: "idle" } as never, form());
+      expect(res.status).toBe("success");
+    });
     it("a demo tenant gets the fake payment and is redirected to its pay page", async () => {
-      tenantRow.v = { id: "t1", slug: "demo", is_demo: true, deposit_type: "fixed", deposit_value: 50 };
+      tenantRow.v = { id: "t1", slug: "demo", is_demo: true, deposit_enabled: true, deposit_type: "fixed", deposit_value: 50 };
       await expect(submitBooking({ status: "idle" } as never, form())).rejects.toThrow(`REDIRECT:/en/c/demo/pay/${"T".repeat(48)}`);
       expect(created.v).toMatchObject([{ tenantId: "t1", amountMinor: 5000, provider: "fake" }]);
     });

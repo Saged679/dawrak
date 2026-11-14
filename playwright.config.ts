@@ -15,10 +15,17 @@ export default defineConfig({
     launchOptions: { args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] },
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    // The default server has the fake payment provider. payments-unavailable.spec.ts needs the opposite
+    // (no provider at all), so it runs only in its own project against the second server on port 3001.
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /payments-unavailable.spec.ts/ },
+    { name: "mobile", use: { ...devices["Pixel 7"] }, testIgnore: /payments-unavailable.spec.ts/ },
+    {
+      name: "no-payments",
+      testMatch: /payments-unavailable.spec.ts/,
+      use: { ...devices["Desktop Chrome"], baseURL: "http://localhost:3001" },
+    },
   ],
-  webServer: {
+  webServer: [{
     command: "npm run build && npm run start",
     url: "http://localhost:3000/ar",
     reuseExistingServer: true,
@@ -38,4 +45,25 @@ export default defineConfig({
     },
     timeout: 180_000,
   },
+  {
+    // Same build, but NO payment provider (no PAYMENT_PROVIDER, no Moyasar key, no ALLOW_FAKE_PAYMENTS):
+    // what production looks like before the Moyasar test keys exist. Starts after the first server (build done).
+    command: "npm run start -- -p 3001",
+    url: "http://localhost:3001/ar",
+    reuseExistingServer: true,
+    env: {
+      DAWRAK_MOCK_EMBEDDINGS: "1",
+      DEMO_MODE: "true",
+      PAYMENT_PROVIDER: "",
+      MOYASAR_SECRET_KEY: "",
+      ALLOW_FAKE_PAYMENTS: "",
+      FAKE_WEBHOOK_SECRET: "",
+      CRON_SECRET: "dawrak-e2e-cron-secret-0123456789",
+      ALLOW_E2E_MOCKS: "true",
+      DAWRAK_MOCK_CHAT_MODEL: "1",
+      MAIL_PROVIDER: "resend",
+      NEXT_PUBLIC_SITE_URL: "http://localhost:3001",
+    },
+    timeout: 60_000,
+  }],
 });

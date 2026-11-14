@@ -83,6 +83,7 @@ export type BookingErrorCode =
   | "too_far"
   | "too_many_bookings"
   | "phone_limit"
+  | "payments_unavailable"
   | "rate_limited"
   | "try_again"
   | "invalid"

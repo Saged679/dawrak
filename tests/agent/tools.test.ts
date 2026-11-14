@@ -215,6 +215,7 @@ describe("create_booking at a deposit tenant", () => {
     id: TENANT,
     slug: "al-noor",
     is_demo: false,
+    deposit_enabled: true,
     deposit_type: "fixed",
     deposit_value: 50,
     ...over,
@@ -259,14 +260,28 @@ describe("create_booking at a deposit tenant", () => {
     expect(writes.some((w) => w.table === "payments")).toBe(false);
   });
 
-  it("a non-demo tenant never gets the fake provider: no payment row, honest note", async () => {
+  it("a non-demo tenant never gets the fake provider: nothing is booked, honest payments_unavailable", async () => {
     env({ PAYMENT_PROVIDER: "fake" });
-    const { run, writes } = setup({ tables: { tenants: tenantTbl() }, rpc: { create_public_booking: { data: held } } });
+    const { run, writes, rpcCalls } = setup({ tables: { tenants: tenantTbl() }, rpc: { create_public_booking: { data: held } } });
     const r = await run("create_booking", { ...booking, user_confirmed: true });
+    expect(r.ok).toBe(false);
+    expect(r.error).toBe("payments_unavailable");
+    expect(r.message).toMatch(/NO appointment was created/);
     expect(writes.some((w) => w.table === "payments")).toBe(false);
-    expect(r.pay_url).toBeUndefined();
-    expect(r.payment_unavailable).toBe(true);
-    expect(r.payment_instruction).toMatch(/NOT confirmed/);
+    expect(rpcCalls.some((c) => c.fn === "create_public_booking")).toBe(false);
+    expect(rpcCalls.some((c) => c.fn === "check_rate_limit")).toBe(false); // the phone limit is not consumed
+  });
+
+  it("production without any payment provider: payments_unavailable, nothing created", async () => {
+    env({});
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("PAYMENT_PROVIDER", "");
+    vi.stubEnv("MOYASAR_SECRET_KEY", "");
+    const { run, rpcCalls } = setup({ tables: { tenants: tenantTbl() }, rpc: { create_public_booking: { data: held } } });
+    const r = await run("create_booking", { ...booking, user_confirmed: true });
+    expect(r.error).toBe("payments_unavailable");
+    expect(rpcCalls.some((c) => c.fn === "create_public_booking")).toBe(false);
   });
 
   it("a demo tenant may use the fake provider", async () => {
