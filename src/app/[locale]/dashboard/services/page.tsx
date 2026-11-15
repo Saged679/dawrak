@@ -49,7 +49,12 @@ export default async function ServicesPage({ params }: Props) {
           <h1 className="font-heading text-2xl font-semibold sm:text-3xl">{t("title")}</h1>
           <p className="text-muted-foreground">{canEdit ? t("lead") : t("leadReadOnly")}</p>
         </div>
-        {canEdit ? (
+        {canEdit && session.tenant.is_demo ? (
+          <span aria-disabled="true" title={tm("errors.demo_readonly")} className={`${primaryBtn} cursor-not-allowed opacity-50`} data-testid="service-new">
+            <Plus className="size-4" aria-hidden />
+            {t("new")}
+          </span>
+        ) : canEdit ? (
           <Link href="/dashboard/services/new" className={primaryBtn} data-testid="service-new">
             <Plus className="size-4" aria-hidden />
             {t("new")}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useLocale, useTranslations } from "next-intl";
@@ -33,6 +33,9 @@ const chatFetch: typeof fetch = async (input, init) => {
 const KNOWN_ERRORS = [
   "rate_limited",
   "tenant_daily_limit",
+  "ip_daily_limit",
+  "forbidden",
+  "unsupported_media_type",
   "not_configured",
   "message_too_long",
   "payload_too_large",
@@ -95,6 +98,24 @@ function createTransport(slug: string, locale: string, voices: VoiceStore) {
   });
 }
 
+const DESKTOP_QUERY = "(min-width: 1024px)";
+function subscribeDesktop(cb: () => void) {
+  const mq = window.matchMedia(DESKTOP_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+/** True when the widget is the inline desktop column (lg), false when it is the full-screen phone overlay. */
+function useIsDesktop() {
+  return useSyncExternalStore(
+    subscribeDesktop,
+    () => window.matchMedia(DESKTOP_QUERY).matches,
+    () => true,
+  );
+}
+
+const FOCUSABLE =
+  'a[href],button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
 export function ChatWidget({ slug, tenantName }: Props) {
   const t = useTranslations("Chat");
   const locale = useLocale();
@@ -102,6 +123,9 @@ export function ChatWidget({ slug, tenantName }: Props) {
   const [closing, setClosing] = useState(false);
   const [sent, setSent] = useState(0);
   const launcherRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const desktop = useIsDesktop();
+  const overlay = open && !desktop;
   const closeTimer = useRef<number | undefined>(undefined);
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -166,8 +190,37 @@ export function ChatWidget({ slug, tenantName }: Props) {
   const wasOpen = useRef(false);
   useEffect(() => {
     if (wasOpen.current && !open) launcherRef.current?.focus();
+    // Opening the full-screen overlay moves focus inside it (the message field).
+    if (!wasOpen.current && open) document.getElementById("chat-input")?.focus();
     wasOpen.current = open;
   }, [open]);
+
+  // Full-screen overlay: Escape closes it; Tab and Shift+Tab stay inside it.
+  function onPanelKeyDown(e: React.KeyboardEvent<HTMLElement>) {
+    if (!overlay || closing) return;
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      closeWidget();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const panel = panelRef.current;
+    const nodes = Array.from(panel?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter(
+      (n) => n.getClientRects().length > 0,
+    );
+    if (!panel || nodes.length === 0) return;
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    const active = document.activeElement;
+    const outside = !panel.contains(active);
+    if (e.shiftKey && (active === first || outside)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (active === last || outside)) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   const errorCode = error
     ? (KNOWN_ERRORS as readonly string[]).includes(error.message)
@@ -235,7 +288,11 @@ export function ChatWidget({ slug, tenantName }: Props) {
       ) : null}
 
       <section
-        aria-label={t("title")}
+        ref={panelRef}
+        role="dialog"
+        aria-modal={overlay ? true : undefined}
+        aria-labelledby="chat-widget-title"
+        onKeyDown={onPanelKeyDown}
         data-testid="chat-widget"
         className={cn(
           "flex-col overflow-hidden bg-paper",
@@ -252,8 +309,10 @@ export function ChatWidget({ slug, tenantName }: Props) {
             {tenantName.trim().charAt(0)}
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate font-heading text-base font-semibold">{t("title")}</h2>
-            <p className="truncate text-xs text-(--brand-fg)/85">{t("subtitle")}</p>
+            <h2 id="chat-widget-title" className="truncate font-heading text-base font-semibold">
+              {t("title")}
+            </h2>
+            <p className="truncate text-xs text-(--brand-fg)">{t("subtitle")}</p>
           </div>
           <button
             type="button"

@@ -88,6 +88,7 @@ export default async function CalendarPage({ params, searchParams }: Props) {
       const endMin = e.dateKey === s.dateKey ? e.minutes : 24 * 60;
       return {
         ...r,
+        locked: session.tenant.is_demo && r.seeded,
         price: showPrice ? r.price : null,
         dateKey: s.dateKey,
         startMin: s.minutes,

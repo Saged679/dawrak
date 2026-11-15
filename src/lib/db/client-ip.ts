@@ -59,6 +59,34 @@ export function resolveClientIp(
   return null;
 }
 
+/**
+ * Rate-limit bucket for an address. IPv4 stays as is. IPv6 collapses to its /64: one subscriber normally owns a whole
+ * /64 (and can rotate through 2^64 addresses in it), so bucketing per full address would give an attacker unlimited
+ * fresh keys. IPv4-mapped IPv6 (::ffff:a.b.c.d) is treated as that IPv4. Anything unparseable is returned unchanged.
+ */
+export function bucketIp(ip: string): string {
+  if (!ip.includes(":")) return ip;
+  const mapped = /^(?:0{0,4}:){0,5}:?ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip);
+  if (mapped) return mapped[1];
+  let groups: string[];
+  const dbl = ip.indexOf("::");
+  if (dbl >= 0) {
+    if (ip.indexOf("::", dbl + 1) >= 0) return ip;
+    const head = ip.slice(0, dbl) ? ip.slice(0, dbl).split(":") : [];
+    const tail = ip.slice(dbl + 2) ? ip.slice(dbl + 2).split(":") : [];
+    const fill = 8 - head.length - tail.length;
+    if (fill < 1) return ip;
+    groups = [...head, ...Array<string>(fill).fill("0"), ...tail];
+  } else {
+    groups = ip.split(":");
+  }
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/i.test(g))) return ip;
+  return groups
+    .slice(0, 4)
+    .map((g) => g.toLowerCase().replace(/^0+(?=.)/, ""))
+    .join(":") + "::/64";
+}
+
 let warned = false;
 /** One warning per process: in production, off Vercel and without TRUSTED_PROXY_HEADER all clients share one bucket. */
 function warnOnce(): void {
@@ -79,6 +107,7 @@ export function _resetClientIpWarning(): void {
  */
 export function getClientIp(headers: HeaderReader): string {
   warnOnce();
-  const ip = resolveClientIp(headers) ?? "unknown";
+  const raw = resolveClientIp(headers);
+  const ip = raw ? bucketIp(raw) : "unknown";
   return createHash("sha256").update(ip).digest("hex").slice(0, 32);
 }

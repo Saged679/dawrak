@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import { checkKbWriteLimit } from "@/lib/dashboard/kb-rate-limit";
 import { createDocument, type KbResult } from "@/lib/dashboard/knowledge";
+import { isSameSiteRequest } from "@/lib/security/same-site";
 import { MAX_PDF_BYTES } from "@/lib/dashboard/knowledge-limits";
 import { checkPdfUpload, extractPdfText } from "@/lib/dashboard/pdf";
 
@@ -12,25 +13,6 @@ export const maxDuration = 60;
 
 const json = (body: KbResult<object>, status = 200) =>
   NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
-
-/**
- * CSRF guard for this mutating POST (the session cookie is also SameSite=Lax). An Origin header
- * must parse and match our host ("null" and malformed values are rejected, never thrown on); with no
- * Origin, the browser must say Sec-Fetch-Site: same-origin or same-site. Neither header = refused.
- */
-function isSameSiteRequest(req: Request): boolean {
-  const origin = req.headers.get("origin");
-  if (origin !== null) {
-    try {
-      const host = req.headers.get("host") ?? new URL(req.url).host;
-      return new URL(origin).host === host;
-    } catch {
-      return false;
-    }
-  }
-  const site = req.headers.get("sec-fetch-site");
-  return site === "same-origin" || site === "same-site";
-}
 
 /**
  * PDF upload for the knowledge base (a route handler, not a server action: server actions cap the

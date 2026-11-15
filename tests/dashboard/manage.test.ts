@@ -13,6 +13,7 @@ import {
   summarizeVisits,
   validateWeek,
 } from "@/lib/dashboard/manage";
+import { contrastRatio } from "@/lib/db/brand";
 
 describe("validateWeek", () => {
   const day = (weekday: number, ...r: [string, string][]) => ({
@@ -160,12 +161,25 @@ describe("settings schema", () => {
 });
 
 describe("readableOn", () => {
-  it("picks white on dark and ink on light brand colours", () => {
-    expect(readableOn("#0f766e")).toBe("#ffffff");
-    expect(readableOn("#2549d1")).toBe("#ffffff");
-    expect(readableOn("#fdebc8")).toBe("#101c3a");
-    expect(readableOn("#f2a93b")).toBe("#101c3a");
-    expect(readableOn("garbage")).toBe("#ffffff");
+  it("keeps colours that already work and picks the right text colour", () => {
+    expect(readableOn("#0f766e")).toEqual({ bg: "#0f766e", fg: "#ffffff" });
+    expect(readableOn("#2549d1")).toEqual({ bg: "#2549d1", fg: "#ffffff" });
+    expect(readableOn("#fdebc8")).toEqual({ bg: "#fdebc8", fg: "#101c3a" });
+    expect(readableOn("#f2a93b")).toEqual({ bg: "#f2a93b", fg: "#101c3a" });
+    expect(readableOn("garbage")).toEqual({ bg: "#2549d1", fg: "#ffffff" });
+  });
+  it("reaches 4.5:1 for every colour on a coarse RGB grid, including mid-tones", () => {
+    let worst = 21;
+    for (let r = 0; r < 256; r += 15) {
+      for (let g = 0; g < 256; g += 15) {
+        for (let b = 0; b < 256; b += 15) {
+          const hex = "#" + [r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("");
+          const { bg, fg } = readableOn(hex);
+          worst = Math.min(worst, contrastRatio(fg, bg));
+        }
+      }
+    }
+    expect(worst).toBeGreaterThanOrEqual(4.5);
   });
 });
 

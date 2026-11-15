@@ -8,6 +8,8 @@ import { routing } from "@/i18n/routing";
 import { getClientIp } from "@/lib/db/client-ip";
 import { rateLimitOk } from "@/lib/db/public";
 import { getServiceClient } from "@/lib/db/client";
+import { demoCreateAllowed } from "@/lib/demo/limits";
+import { rotateDemoSessionHash } from "@/lib/demo/session";
 import { createDemoVisitor, isVisitorForPersona } from "@/lib/demo/visitor";
 import { demoEnabled, isDemoPersona } from "./demo";
 import { DEMO_AUTH_COOKIE_MAX_AGE } from "./cookie-options";
@@ -101,19 +103,24 @@ export async function enterDemo(fd: FormData): Promise<void> {
 
   let failure: "rate" | "signin" | "busy" | null = null;
   try {
-    if (!(await rateLimitOk(`ip:${await clientKey()}:demo`, 30, "10 minutes"))) {
-      failure = "rate";
+    const admin = getServiceClient();
+    const supabase = await createSupabaseServerClient({ maxAge: DEMO_AUTH_COOKIE_MAX_AGE });
+    const { data: current } = await supabase.auth.getUser();
+    if (current.user && (await isVisitorForPersona(admin, current.user.id, persona))) {
+      // already this persona: keep the session, nothing to create
     } else {
-      const admin = getServiceClient();
-      const supabase = await createSupabaseServerClient({ maxAge: DEMO_AUTH_COOKIE_MAX_AGE });
-      const { data: current } = await supabase.auth.getUser();
-      if (current.user && (await isVisitorForPersona(admin, current.user.id, persona))) {
-        // already this persona: keep the session, nothing to create
+      // M1: creating a visitor is the expensive step, so it is what the per-IP limits count (3 / hour, 10 / day).
+      const ip = await clientKey();
+      const allowed = await demoCreateAllowed(ip, rateLimitOk);
+      if (!allowed) {
+        failure = "rate";
       } else {
         // End only this browser's previous session ("local"); never a global logout.
         if (current.user) await supabase.auth.signOut({ scope: "local" });
+        const sessionHash = await rotateDemoSessionHash();
         const res = await createDemoVisitor(persona, {
           admin,
+          sessionHash,
           signInWithPassword: async (email, password) => {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             return { error: error ? { status: error.status, message: error.message } : null };
@@ -124,9 +131,9 @@ export async function enterDemo(fd: FormData): Promise<void> {
         });
         if (!res.ok) failure = res.failure;
       }
-      // A previous session may have chosen another tenant.
-      if (!failure) (await cookies()).delete(TENANT_COOKIE);
     }
+    // A previous session may have chosen another tenant.
+    if (!failure) (await cookies()).delete(TENANT_COOKIE);
   } catch (e) {
     console.error("demo_error", e instanceof Error ? e.message : e);
     failure = "signin";

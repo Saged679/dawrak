@@ -6,8 +6,17 @@ import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import { mapWriteError, type WriteResult } from "@/lib/dashboard/errors";
 import { invalidFields, settingsSchema } from "@/lib/dashboard/manage";
 
-/** Columns a demo owner cannot change; the database refuses them too (`demo_readonly`). */
-const DEMO_LOCKED = ["name_ar", "name_en", "timezone", "currency", "logo_url", "brand_color"] as const;
+/** Columns a demo owner cannot change; the database refuses them too (`demo_readonly`). The deposit is frozen as well (the demo clinic has none). */
+const DEMO_LOCKED = ["name_ar", "name_en", "timezone", "currency", "logo_url", "brand_color", "deposit_enabled", "deposit_type", "deposit_value"] as const;
+
+/** Numeric columns come back from PostgREST as numbers or strings; compare by value. */
+function sameValue(a: unknown, b: unknown): boolean {
+  const x = a ?? null;
+  const y = b ?? null;
+  if (typeof x === "boolean" || typeof y === "boolean") return x === y;
+  if (x !== null && y !== null && x !== "" && y !== "" && !Number.isNaN(Number(x)) && !Number.isNaN(Number(y))) return Number(x) === Number(y);
+  return x === y;
+}
 
 /**
  * Updates the tenant row. Only the columns the database grants `authenticated` UPDATE on
@@ -28,7 +37,7 @@ export async function saveSettings(input: unknown): Promise<WriteResult> {
       deposit_type: d.deposit_type,
       deposit_value: d.deposit_value,
     };
-    let fields: Record<string, unknown> = {
+    const fields: Record<string, unknown> = {
       name_ar: d.name_ar,
       name_en: d.name_en,
       timezone: d.timezone,
@@ -46,9 +55,10 @@ export async function saveSettings(input: unknown): Promise<WriteResult> {
         .maybeSingle();
       if (curErr) return { ok: false, code: mapWriteError(curErr) };
       const now = (cur ?? {}) as unknown as Record<string, unknown>;
-      const changed = DEMO_LOCKED.filter((k) => (now[k] ?? null) !== (d[k] ?? null));
+      const changed = DEMO_LOCKED.filter((k) => !sameValue(now[k], d[k]));
       if (!cur || changed.length > 0) return { ok: false, code: "demo_readonly", fields: [...changed] };
-      fields = deposit;
+      // Nothing is writable on a demo business: the form is a no-op that succeeds when nothing changed.
+      return { ok: true };
     }
     const { data, error } = await supabase
       .from("tenants")

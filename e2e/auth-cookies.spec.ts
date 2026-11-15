@@ -51,12 +51,12 @@ test("login sets only HttpOnly auth cookies; the session survives navigation and
   await expect(page).toHaveURL(/\/en\/login/);
 });
 
-test("demo entry sets HttpOnly cookies that last about 24 hours", async ({ page, context }) => {
+test("demo entry sets HttpOnly cookies that last about 6 hours", async ({ page, context }) => {
   await enterDemo(page, "clinic-owner");
   const cookies = await expectHardened(context);
   const left = Math.max(...cookies.map((c) => c.expires)) - Date.now() / 1000;
-  expect(left).toBeGreaterThan(23 * 3600);
-  expect(left).toBeLessThanOrEqual(24 * 3600 + 60);
+  expect(left).toBeGreaterThan(5 * 3600);
+  expect(left).toBeLessThanOrEqual(6 * 3600 + 60);
   await expectInvisibleToScripts(page);
 });
 

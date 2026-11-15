@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
   // `next dev` otherwise (re)writes AGENTS.md into the repo root whenever it detects a coding
   // agent. Documented option, see node_modules/next/dist/docs/.../next-config-js/agentRules.md.
   agentRules: false,
+  // Lets a second production build (e.g. an isolated e2e run) live beside a running server's .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   // Lets src/app/global-not-found.tsx answer paths outside the locale tree (own html, lang=ar dir=rtl).
   experimental: { globalNotFound: true },

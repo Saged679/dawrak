@@ -133,7 +133,7 @@ export default async function ProviderPage({ params }: Props) {
           rows={timeOff}
           timezone={session.tenant.timezone}
           locale={loc}
-          canEdit={canEdit}
+          canEdit={canEdit && !provider.locked}
         />
       </section>
     </div>

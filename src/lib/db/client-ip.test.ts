@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { _resetClientIpWarning, getClientIp } from "./client-ip";
+import { _resetClientIpWarning, bucketIp, getClientIp } from "./client-ip";
 
 const h = (o: Record<string, string>) => new Headers(o);
 const UNKNOWN = getClientIp(h({}));
@@ -36,7 +36,7 @@ describe("getClientIp", () => {
   it("handles IPv6 and distinguishes addresses", () => {
     vi.stubEnv("VERCEL", "1");
     const a = getClientIp(h({ "x-real-ip": "2001:db8::1" }));
-    const b = getClientIp(h({ "x-real-ip": "2001:db8::2" }));
+    const b = getClientIp(h({ "x-real-ip": "2001:db9::2" }));
     expect(a).not.toBe(UNKNOWN);
     expect(a).not.toBe(b);
     expect(a).toBe(getClientIp(h({ "x-real-ip": "2001:DB8::1" })));
@@ -102,5 +102,36 @@ describe("TRUSTED_PROXY_HEADER (off Vercel, L5)", () => {
     getClientIp(h({}));
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
+  });
+});
+
+describe("bucketIp (IPv6 /64)", () => {
+  it("leaves IPv4 alone and unwraps IPv4-mapped IPv6", () => {
+    expect(bucketIp("203.0.113.7")).toBe("203.0.113.7");
+    expect(bucketIp("::ffff:203.0.113.7")).toBe("203.0.113.7");
+  });
+  it("collapses every address of one /64 to the same bucket", () => {
+    const a = bucketIp("2001:db8:1:2:aaaa:bbbb:cccc:dddd");
+    expect(a).toBe("2001:db8:1:2::/64");
+    expect(bucketIp("2001:0DB8:0001:0002:1:2:3:4")).toBe(a);
+    expect(bucketIp("2001:db8:1:2::1")).toBe(a);
+    expect(bucketIp("2001:db8:1:3::1")).not.toBe(a);
+  });
+  it("expands :: correctly", () => {
+    expect(bucketIp("::1")).toBe("0:0:0:0::/64");
+    expect(bucketIp("2001:db8::")).toBe("2001:db8:0:0::/64");
+    expect(bucketIp("fe80::1234:5678")).toBe("fe80:0:0:0::/64");
+  });
+  it("returns junk unchanged", () => {
+    expect(bucketIp("1:2:3")).toBe("1:2:3");
+    expect(bucketIp("1::2::3")).toBe("1::2::3");
+  });
+  it("getClientIp gives two addresses of one /64 the same key on Vercel", () => {
+    vi.stubEnv("VERCEL", "1");
+    const a = getClientIp(h({ "x-forwarded-for": "2001:db8:1:2::1" }));
+    const b = getClientIp(h({ "x-forwarded-for": "2001:db8:1:2:ffff:ffff:ffff:ffff" }));
+    const c = getClientIp(h({ "x-forwarded-for": "2001:db8:1:9::1" }));
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
   });
 });

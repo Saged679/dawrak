@@ -8,9 +8,11 @@ import {
   SERVICE_KEY,
   SUPABASE_URL,
   clearRateLimits,
+  demoSessionHash,
   enterDemo,
   passwordGrant,
   rest,
+  restShared,
   tokensForVisitor,
   visitorEmail,
 } from "./helpers/tenant";
@@ -38,13 +40,13 @@ test.describe("per-visitor demo users", () => {
     const eb = await visitorEmail(pb);
     expect(ea).not.toBe(eb);
 
-    // registered with the right tenant and role, expiring in about 24 h
+    // registered with the right tenant and role, expiring in about 6 h
     const rows = (await rest(`demo_users?select=user_id,tenant_id,role,expires_at`)) as { user_id: string; tenant_id: string; role: string; expires_at: string }[];
     const mine = rows.filter((r) => r.tenant_id === CLINIC && r.role === "owner");
     expect(mine.length).toBeGreaterThanOrEqual(2);
     const hours = (Math.max(...mine.map((r) => Date.parse(r.expires_at))) - Date.now()) / 3_600_000;
-    expect(hours).toBeGreaterThan(22);
-    expect(hours).toBeLessThanOrEqual(24.1);
+    expect(hours).toBeGreaterThan(5);
+    expect(hours).toBeLessThanOrEqual(6.1);
 
     // same persona again: the existing session is kept (same user, nothing new for this browser)
     await clearRateLimits();
@@ -140,8 +142,8 @@ test.describe("the demo business is read-mostly", () => {
     await expect(page.getByLabel("Name (English)")).toBeDisabled();
     await expect(page.getByTestId("provider-save")).toHaveCount(0);
     await expect(page.getByTestId("hours-save")).toHaveCount(0);
-    // adding time off is still allowed (inserts are), removing the seeded rows is not
-    await expect(page.getByTestId("time-off-add")).toBeVisible();
+    // the whole catalogue is read-only in the demo (inserts are refused too): no time-off form
+    await expect(page.getByTestId("time-off-add")).toHaveCount(0);
 
     // straight against PostgREST with the visitor's own JWT (taken last: setting a known password ends the browser session)
     const tok = await tokensForVisitor(email);
@@ -165,28 +167,46 @@ test.describe("the demo business is read-mostly", () => {
     await page.goto("/en/dashboard/services");
     await expect(page.getByTestId("demo-locked")).toBeVisible();
     await expect(page.getByTestId(`service-${svc.id}`).getByRole("button", { name: "Deactivate" })).toBeDisabled();
-    await expect(page.getByTestId("service-new")).toBeVisible(); // creating is still allowed (within the demo caps)
+    await expect(page.getByTestId("service-new")).toHaveAttribute("aria-disabled", "true"); // creating is refused by the database too
     await page.goto(`/en/dashboard/services/${svc.id}`);
     await expect(page.getByTestId("demo-locked")).toBeVisible();
     await expect(page.getByLabel("Name (English)")).toBeDisabled();
     await expect(page.getByTestId("service-save")).toHaveCount(0);
   });
 
-  test("appointment status changes still work for a demo owner", async ({ page }) => {
-    const rows = (await rest(
+  test("a demo owner can change the status of their OWN appointment, never a seeded one", async ({ page }) => {
+    await enterDemo(page, "clinic-owner");
+    const hash = await demoSessionHash(page);
+    const [seeded] = (await rest(
       `appointments?tenant_id=eq.${CLINIC}&status=eq.confirmed&starts_at=gt.${new Date(Date.now() + 36e5).toISOString()}&order=starts_at.desc&limit=1`,
-    )) as { id: string; starts_at: string }[];
-    const appt = rows[0];
-    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Riyadh" }).format(new Date(appt.starts_at));
+    )) as { id: string; starts_at: string; provider_id: string; service_id: string; customer_id: string }[];
+    const start = new Date(new Date(seeded.starts_at).getTime() + 90 * 86_400_000 + Math.floor(Math.random() * 40) * 3_600_000);
+    const own = await restShared<{ id: string; starts_at: string }>("appointments", {
+      tenant_id: CLINIC, provider_id: seeded.provider_id, service_id: seeded.service_id, customer_id: seeded.customer_id,
+      starts_at: start.toISOString(), ends_at: new Date(start.getTime() + 1_800_000).toISOString(), status: "confirmed", source: "staff",
+    }, hash);
+    const day = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Riyadh" }).format(new Date(iso));
     try {
-      await enterDemo(page, "clinic-owner");
-      await page.goto(`/en/dashboard/calendar?view=day&date=${day}`);
-      await page.locator(`[data-id="${appt.id}"]`).click();
+      await page.goto(`/en/dashboard/calendar?view=day&date=${day(own.starts_at)}`);
+      await page.locator(`[data-id="${own.id}"]`).click();
       await page.getByTestId("set-no_show").click();
       await expect(page.getByTestId("dialog-msg")).toHaveText("Status updated.");
-      await expect.poll(async () => ((await rest(`appointments?id=eq.${appt.id}&select=status`)) as { status: string }[])[0].status).toBe("no_show");
+      await expect.poll(async () => ((await rest(`appointments?id=eq.${own.id}&select=status`)) as { status: string }[])[0].status).toBe("no_show");
+
+      // the seeded one: disabled in the dialog, and refused by the database with the visitor's own token
+      await page.goto(`/en/dashboard/calendar?view=day&date=${day(seeded.starts_at)}`);
+      await page.locator(`[data-id="${seeded.id}"]`).click();
+      await expect(page.getByTestId("set-no_show")).toBeDisabled();
+      const tok = await tokensForVisitor(await visitorEmail(page));
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/appointments?id=eq.${seeded.id}`, {
+        method: "PATCH",
+        headers: { apikey: ANON_KEY!, Authorization: `Bearer ${tok.access}`, "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify({ status: "no_show" }),
+      });
+      expect(res.ok && (await res.text()) !== "[]", "seeded appointment must not change").toBe(false);
+      expect(((await rest(`appointments?id=eq.${seeded.id}&select=status`)) as { status: string }[])[0].status).toBe("confirmed");
     } finally {
-      await rest(`appointments?id=eq.${appt.id}`, { method: "PATCH", body: JSON.stringify({ status: "confirmed" }) });
+      await rest(`appointments?id=eq.${own.id}`, { method: "DELETE" });
     }
   });
 

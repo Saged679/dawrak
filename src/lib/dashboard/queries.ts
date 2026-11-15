@@ -18,6 +18,8 @@ export type AppointmentRow = {
   serviceId: string;
   service: Named;
   customer: { full_name: string; phone: string };
+  /** Seeded (shared) row: it has no demo owner. In a demo business visitors cannot change those. */
+  seeded: boolean;
 };
 
 export type ProviderRow = Named & { id: string; title_ar: string | null; title_en: string | null };
@@ -33,6 +35,7 @@ type RawAppointment = {
   notes: string | null;
   provider_id: string;
   service_id: string;
+  demo_session_hash: string | null;
   providers: Named | Named[] | null;
   services: Named | Named[] | null;
   customers: Customer | Customer[] | null;
@@ -40,7 +43,7 @@ type RawAppointment = {
 
 // Explicit columns only: staff may not `select *` on customers (access_token is not granted).
 const APPOINTMENT_SELECT =
-  "id, starts_at, ends_at, status, price, notes, provider_id, service_id, " +
+  "id, starts_at, ends_at, status, price, notes, provider_id, service_id, demo_session_hash, " +
   "providers(name_ar, name_en), services(name_ar, name_en), customers(full_name, phone)";
 
 function one<T>(v: T | T[] | null): T | null {
@@ -60,6 +63,7 @@ function mapAppointment(r: RawAppointment): AppointmentRow {
     serviceId: r.service_id,
     service: one(r.services) ?? { name_ar: "", name_en: null },
     customer: one(r.customers) ?? { full_name: "", phone: "" },
+    seeded: r.demo_session_hash == null,
   };
 }
 

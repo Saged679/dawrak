@@ -4,22 +4,27 @@ import type { AgentDb } from "./types";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Return an existing conversation of this tenant+channel, or create one. The (unguessable) uuid
- * acts as the web session secret; a uuid belonging to another tenant is ignored, not reused.
+ * Return an existing conversation of this tenant+channel, or create one. A web conversation is bound to the
+ * SHA-256 of the visitor's httpOnly cookie (`session_hash`): an id alone resumes nothing, and a conversation
+ * with no owner (seeded or legacy rows) can never be resumed by id. An id of another tenant or session is
+ * ignored, not reused (a new conversation is created instead).
  */
 export async function getOrCreateConversation(
   db: AgentDb,
-  p: { tenantId: string; channel: "web" | "whatsapp"; conversationId?: string; externalId?: string },
+  p: { tenantId: string; channel: "web" | "whatsapp"; conversationId?: string; externalId?: string; sessionHash?: string | null },
 ): Promise<string> {
   if (p.conversationId && UUID_RE.test(p.conversationId)) {
-    const { data } = await db
-      .from("conversations")
-      .select("id")
-      .eq("id", p.conversationId)
-      .eq("tenant_id", p.tenantId)
-      .eq("channel", p.channel)
-      .maybeSingle();
-    if (data) return (data as { id: string }).id;
+    if (p.channel !== "web" || p.sessionHash) {
+      let q = db
+        .from("conversations")
+        .select("id")
+        .eq("id", p.conversationId)
+        .eq("tenant_id", p.tenantId)
+        .eq("channel", p.channel);
+      if (p.channel === "web") q = q.eq("session_hash", p.sessionHash as string);
+      const { data } = await q.maybeSingle();
+      if (data) return (data as { id: string }).id;
+    }
   }
   if (p.channel === "whatsapp" && p.externalId) {
     const { data } = await db
@@ -35,7 +40,12 @@ export async function getOrCreateConversation(
   }
   const { data, error } = await db
     .from("conversations")
-    .insert({ tenant_id: p.tenantId, channel: p.channel, external_id: p.externalId ?? null })
+    .insert({
+      tenant_id: p.tenantId,
+      channel: p.channel,
+      external_id: p.externalId ?? null,
+      ...(p.channel === "web" && p.sessionHash ? { session_hash: p.sessionHash } : {}),
+    })
     .select("id")
     .single();
   if (error || !data) throw error ?? new Error("conversation_create_failed");

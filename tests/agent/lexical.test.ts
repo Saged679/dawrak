@@ -88,9 +88,10 @@ describe("search_knowledge: hybrid (semantic + lexical, fused)", () => {
   const rows = KB.map((k) => ({ ...k }));
   const vec = async () => Array(768).fill(0.01);
   const sem = (id: string, content: string, similarity: number) => ({ id, content, similarity });
+  const kbRows = (unembedded: boolean) => ({ data: rows.map((r, i) => ({ ...r, embedded: !(unembedded && i === 0) })) });
 
   it("a strong semantic hit with every chunk embedded needs no lexical pass", async () => {
-    const f = fakeDb({ tables: { kb_chunks: rows, "kb_chunks:null": [] }, rpc: { match_kb_chunks: { data: [sem("hours", "semantic hit", 0.8)] } } });
+    const f = fakeDb({ rpc: { kb_search_chunks: kbRows(false), match_kb_chunks: { data: [sem("hours", "semantic hit", 0.8)] } } });
     const r = await search(ctx(f.db, vec), "hours");
     expect(r).toMatchObject({ ok: true, untrusted_data: true });
     expect(r.results[0]).toMatchObject({ content: "semantic hit", source: "semantic", similarity: 0.8 });
@@ -98,8 +99,7 @@ describe("search_knowledge: hybrid (semantic + lexical, fused)", () => {
 
   it("ANY unembedded chunk triggers the lexical pass: one irrelevant semantic hit no longer hides the hours chunk", async () => {
     const f = fakeDb({
-      tables: { kb_chunks: rows, "kb_chunks:null": [{ id: "x" }] },
-      rpc: { match_kb_chunks: { data: [sem("en-parking", KB[3].content, 0.82)] } },
+      rpc: { kb_search_chunks: kbRows(true), match_kb_chunks: { data: [sem("en-parking", KB[3].content, 0.82)] } },
     });
     const r = await search(ctx(f.db, vec), "ما هي ساعات العمل؟");
     const contents = r.results.map((x: { content: string }) => x.content);
@@ -109,20 +109,20 @@ describe("search_knowledge: hybrid (semantic + lexical, fused)", () => {
   });
 
   it("a weak semantic top score (below 0.6) also triggers it", async () => {
-    const f = fakeDb({ tables: { kb_chunks: rows, "kb_chunks:null": [] }, rpc: { match_kb_chunks: { data: [sem("en-parking", KB[3].content, 0.5)] } } });
+    const f = fakeDb({ rpc: { kb_search_chunks: kbRows(false), match_kb_chunks: { data: [sem("en-parking", KB[3].content, 0.5)] } } });
     const r = await search(ctx(f.db, vec), "ما هي ساعات العمل؟");
     expect(r.results.some((x: { content: string }) => x.content.includes("ساعات العمل"))).toBe(true);
   });
 
   it("the same chunk found by both is merged once and marked both", async () => {
-    const f = fakeDb({ tables: { kb_chunks: rows, "kb_chunks:null": [{ id: "x" }] }, rpc: { match_kb_chunks: { data: [sem("hours", KB[0].content, 0.9)] } } });
+    const f = fakeDb({ rpc: { kb_search_chunks: kbRows(true), match_kb_chunks: { data: [sem("hours", KB[0].content, 0.9)] } } });
     const r = await search(ctx(f.db, vec), "ما هي ساعات العمل؟");
     expect(r.results.filter((x: { content: string }) => x.content.includes("ساعات العمل"))).toHaveLength(1);
     expect(r.results[0]).toMatchObject({ source: "both", score: 1 });
   });
 
   it("similarities under the 0.45 noise floor are dropped (0.3 let unrelated chunks through)", async () => {
-    const f = fakeDb({ tables: { kb_chunks: rows, "kb_chunks:null": [] }, rpc: { match_kb_chunks: { data: [sem("en-parking", KB[3].content, 0.35)] } } });
+    const f = fakeDb({ rpc: { kb_search_chunks: kbRows(false), match_kb_chunks: { data: [sem("en-parking", KB[3].content, 0.35)] } } });
     const r = await search(ctx(f.db, vec), "quantum chromodynamics");
     expect(r.results).toEqual([]);
   });
@@ -132,7 +132,7 @@ describe("search_knowledge: hybrid (semantic + lexical, fused)", () => {
     ["embedding call failed / quota", { rpc: { match_kb_chunks: { data: [sem("a", "never", 0.9)] } }, embed: async () => { throw Object.assign(new Error("quota"), { statusCode: 429 }); } }],
     ["match RPC error", { rpc: { match_kb_chunks: { error: { message: "boom" } } }, embed: vec }],
   ])("lexical still answers: %s", async (_n, c) => {
-    const f = fakeDb({ tables: { kb_chunks: rows }, rpc: c.rpc as never });
+    const f = fakeDb({ rpc: { kb_search_chunks: kbRows(false), ...(c.rpc as object) } as never });
     const r = await search(ctx(f.db, c.embed), "ما هي ساعات العمل؟");
     expect(r).toMatchObject({ ok: true, untrusted_data: true });
     expect(r.results[0]).toMatchObject({ source: "lexical" });
@@ -140,8 +140,25 @@ describe("search_knowledge: hybrid (semantic + lexical, fused)", () => {
     expect(r.results[0].content).toContain("ساعات العمل");
   });
 
+  it("M3: the visitor session reaches BOTH the semantic and the lexical lookup, and the table is never read directly", async () => {
+    const f = fakeDb({ rpc: { kb_search_chunks: kbRows(true), match_kb_chunks: { data: [] } } });
+    const hash = "ab".repeat(32);
+    const c = { ...ctx(f.db, vec), sessionHash: hash };
+    await search(c, "ما هي ساعات العمل؟");
+    const calls = f.rpcCalls.filter((x) => x.fn === "match_kb_chunks" || x.fn === "kb_search_chunks");
+    expect(calls.map((x) => x.fn).sort()).toEqual(["kb_search_chunks", "match_kb_chunks"]);
+    for (const x of calls) expect(x.args.p_session_hash).toBe(hash);
+    expect(f.writes).toHaveLength(0);
+  });
+
+  it("M3: no session (real tenant) sends null", async () => {
+    const f = fakeDb({ rpc: { kb_search_chunks: kbRows(false), match_kb_chunks: { data: [] } } });
+    await search(ctx(f.db, vec), "hours");
+    expect(f.rpcCalls.find((x) => x.fn === "match_kb_chunks")!.args.p_session_hash).toBeNull();
+  });
+
   it("nothing relevant returns an empty list", async () => {
-    const f = fakeDb({ tables: { kb_chunks: rows }, rpc: { match_kb_chunks: { data: [] } } });
+    const f = fakeDb({ rpc: { kb_search_chunks: kbRows(false), match_kb_chunks: { data: [] } } });
     const r = await search(ctx(f.db, vec), "quantum chromodynamics");
     expect(r).toMatchObject({ ok: true, results: [] });
   });

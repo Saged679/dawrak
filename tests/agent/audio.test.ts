@@ -16,7 +16,7 @@ const wav = (seconds: number) => b64(wavBytes(seconds));
 function req(message: unknown, headers: Record<string, string> = {}, extra: object = {}) {
   return new Request("http://localhost/api/chat", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": "1.2.3.4", ...headers },
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", "x-forwarded-for": "1.2.3.4", ...headers },
     body: JSON.stringify({ tenantSlug: "al-noor", locale: "en", message, ...extra }),
   });
 }
@@ -112,7 +112,7 @@ describe("voice note validation (before the model)", () => {
         if (pulled > 20_000_000) c.close();
       },
     });
-    const r = new Request("http://localhost/api/chat", { method: "POST", body: stream, duplex: "half" } as RequestInit);
+    const r = new Request("http://localhost/api/chat", { method: "POST", headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" }, body: stream, duplex: "half" } as RequestInit);
     const res = await s.call(r);
     expect(res.status).toBe(413);
     expect(pulled).toBeLessThan(WEB_LIMITS.maxBodyBytes + 1_000_000);
@@ -181,6 +181,7 @@ describe("voice notes: rate limits and persistence", () => {
     const keys = s.rpcCalls.filter((c) => c.fn === "check_rate_limit").map((c) => String(c.args.p_key));
     expect(keys).toEqual([
       expect.stringMatching(/^ip:[0-9a-f]{32}:chat$/),
+      expect.stringMatching(/^ip:[0-9a-f]{32}:chat:day$/),
       `tenant:${TENANT}:chat:day`,
       expect.stringMatching(/^ip:[0-9a-f]{32}:chat:audio$/),
       `tenant:${TENANT}:chat:audio:day`,
@@ -197,7 +198,8 @@ describe("voice notes: rate limits and persistence", () => {
   it("per-IP audio limit answers 429 audio_rate_limited before the model", async () => {
     const s = setup({ audioIp: false });
     const res = await s.call(req(audio(wav(2))));
-    expect(res.headers.get("Retry-After")).toBe(String(CHAT_LIMITS.audioIp.windowSeconds));
+    expect(Number(res.headers.get("Retry-After"))).toBeGreaterThanOrEqual(1);
+    expect(Number(res.headers.get("Retry-After"))).toBeLessThanOrEqual(CHAT_LIMITS.audioIp.windowSeconds);
     await expectRejected(res, 429, "audio_rate_limited", s);
   });
 

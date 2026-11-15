@@ -59,6 +59,8 @@ export async function hybridSearch(
   tenantId: string,
   query: string,
   embedQuery: (text: string) => Promise<number[]>,
+  /** Demo tenants: SHA-256 of the visitor's session. The database returns seeded chunks plus this visitor's own only. */
+  sessionHash: string | null = null,
 ): Promise<{ hits: KnowledgeHit[]; semanticAvailable: boolean; lexicalRan: boolean }> {
   // 1) semantic
   let semantic: Sem[] = [];
@@ -69,6 +71,7 @@ export async function hybridSearch(
       p_tenant_id: tenantId,
       p_embedding: `[${embedding.join(",")}]`,
       p_k: 6,
+      p_session_hash: sessionHash,
     });
     if (error) throw error;
     semantic = ((data ?? []) as Sem[]).filter((r) => r.similarity >= MIN_SEMANTIC_SIMILARITY);
@@ -80,18 +83,18 @@ export async function hybridSearch(
   const top = semantic.reduce((m, r) => Math.max(m, r.similarity), 0);
   let needLexical = !semanticAvailable || semantic.length === 0 || top < WEAK_SEMANTIC_SIMILARITY;
   if (!needLexical) {
-    const { data } = await db.from("kb_chunks").select("id").eq("tenant_id", tenantId).is("embedding", null).limit(1);
-    needLexical = ((data ?? []) as unknown[]).length > 0;
+    const { data } = await db.rpc("kb_search_chunks", { p_tenant_id: tenantId, p_session_hash: sessionHash, p_limit: LEXICAL_MAX_CHUNKS });
+    needLexical = ((data ?? []) as { embedded: boolean }[]).some((c) => !c.embedded);
   }
 
   let lexical: { id: string; content: string; score: number }[] = [];
   if (needLexical) {
-    const { data: chunks, error } = await db
-      .from("kb_chunks")
-      .select("id, content")
-      .eq("tenant_id", tenantId)
-      .order("chunk_index", { ascending: true })
-      .limit(LEXICAL_MAX_CHUNKS);
+    // kb_search_chunks applies the demo visibility rule (seeded + this visitor's chunks) inside the database
+    const { data: chunks, error } = await db.rpc("kb_search_chunks", {
+      p_tenant_id: tenantId,
+      p_session_hash: sessionHash,
+      p_limit: LEXICAL_MAX_CHUNKS,
+    });
     if (error) throw error;
     lexical = lexicalSearch((chunks ?? []) as { id: string; content: string }[], query);
   }

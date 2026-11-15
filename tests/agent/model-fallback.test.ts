@@ -266,7 +266,7 @@ describe("POST /api/chat with an exhausted quota", () => {
   const req = () =>
     new Request("http://localhost/api/chat", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "1.2.3.4" },
+      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", "x-forwarded-for": "1.2.3.4" },
       body: JSON.stringify({ tenantSlug: "al-noor", locale: "en", message: { type: "text", text: "hello" } }),
     });
 

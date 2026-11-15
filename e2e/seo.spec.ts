@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
  * pages when the tenant query fails). The last block is tagged @db: it needs the local Supabase
  * stack with seed data, and is meant to be run by the QA agent once the stack is up.
  */
-const SITE = "http://localhost:3000"; // NEXT_PUBLIC_SITE_URL in playwright.config.ts
+import { SITE } from "./helpers/site"; // NEXT_PUBLIC_SITE_URL in playwright.config.ts
 
 for (const locale of ["ar", "en"] as const) {
   test.describe(`landing head /${locale}`, () => {
@@ -102,7 +102,7 @@ test.describe("robots and redirects", () => {
     const first = await request.get("/", { maxRedirects: 0 });
     expect([307, 308]).toContain(first.status());
     const target = first.headers()["location"];
-    expect(target).toMatch(/^(\/|http:\/\/localhost:3000\/)(ar|en)$/);
+    expect(target.replace(SITE, "")).toMatch(/^[/](ar|en)$/);
     const second = await request.get(target, { maxRedirects: 0 });
     expect(second.status()).toBe(200);
   });
@@ -131,8 +131,9 @@ test.describe("clinic pages @db", () => {
       `${SITE}/en/c/demo-clinic`,
     );
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /opengraph-image/);
-    // demo tenants are fictional: no LocalBusiness-style markup
-    await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(0);
+    // demo tenants are fictional: no LocalBusiness-style markup, only the structural BreadcrumbList
+    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
+    expect(blocks.map((b) => (JSON.parse(b) as { "@type": string })["@type"])).toEqual(["BreadcrumbList"]);
   });
 
   test("sitemap includes the demo clinic and salon in both locales", async ({ request }) => {

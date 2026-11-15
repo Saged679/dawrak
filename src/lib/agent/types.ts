@@ -39,6 +39,8 @@ export type ToolContext = {
   locale: Locale;
   /** Embeds a search query (768 dims). Injected so tests never hit Gemini. */
   embedQuery: (text: string) => Promise<number[]>;
+  /** Demo tenants only: SHA-256 of the visitor's session cookie (never supplied by the model); null otherwise. */
+  sessionHash?: string | null;
   /** Channel hook run after a booking succeeds: attaches the demo session, queues the confirmation mail. */
   afterBooking?: AfterBooking;
   /**

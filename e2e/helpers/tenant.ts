@@ -139,7 +139,7 @@ export type TempTenant = {
  * catalogue, hours, time off or knowledge base run against it (the seeded demo business is read-only for
  * demo users). Call `cleanup()` in afterAll: it removes the tenant (cascades) and the auth user.
  */
-export async function createTempTenant(opts: { kind?: "clinic" | "salon"; label?: string; role?: "owner" | "receptionist" } = {}): Promise<TempTenant> {
+export async function createTempTenant(opts: { kind?: "clinic" | "salon"; label?: string; role?: "owner" | "receptionist"; demo?: boolean } = {}): Promise<TempTenant> {
   const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const email = `e2e-${opts.label ?? "owner"}-${stamp}@example.com`;
   const password = "E2e#Owner2026";
@@ -149,7 +149,7 @@ export async function createTempTenant(opts: { kind?: "clinic" | "salon"; label?
   const slug = `e2e-${opts.label ?? "biz"}-${stamp}`;
   const [t] = (await rest("tenants", {
     method: "POST",
-    body: JSON.stringify({ slug, name_ar: "عيادة اختبار", name_en: `E2E Business ${stamp}`, kind: opts.kind ?? "clinic", is_demo: false }),
+    body: JSON.stringify({ slug, name_ar: "عيادة اختبار", name_en: `E2E Business ${stamp}`, kind: opts.kind ?? "clinic", is_demo: opts.demo ?? false }),
   })) as { id: string }[];
   await rest("memberships", { method: "POST", body: JSON.stringify({ user_id: userId, tenant_id: t.id, role: opts.role ?? "owner" }) });
   return {
@@ -163,4 +163,50 @@ export async function createTempTenant(opts: { kind?: "clinic" | "salon"; label?
       await adminFetch(`/admin/users/${userId}`, { method: "DELETE" }).catch(() => {});
     },
   };
+}
+
+/**
+ * Inserts a row into a DEMO tenant as service_role and makes it a shared row (like the seed data) that every
+ * demo visitor and the fixed staff users can see. A plain insert would be stamped with a random owner hash by the
+ * database (fail-safe), which makes the row invisible to everybody. `ownerColumn` is `demo_session_hash` for
+ * customers and appointments, `session_hash` for conversations. Pass `hash` to give the row to one visitor instead
+ * (see demoSessionHash).
+ */
+export async function restShared<T extends { id: string }>(
+  table: "customers" | "appointments" | "conversations",
+  body: Record<string, unknown>,
+  hash: string | null = null,
+): Promise<T> {
+  const col = table === "conversations" ? "session_hash" : "demo_session_hash";
+  const [row] = (await rest(table, { method: "POST", body: JSON.stringify(body) })) as T[];
+  await rest(`${table}?id=eq.${row.id}`, { method: "PATCH", body: JSON.stringify({ [col]: hash }) });
+  return row;
+}
+
+/** The session hash that owns the demo data of the visitor currently signed in on `page`. */
+export async function demoSessionHash(page: Page): Promise<string> {
+  const id = await userIdByEmail(await visitorEmail(page));
+  const [row] = (await rest(`demo_users?user_id=eq.${id}&select=session_hash`)) as { session_hash: string }[];
+  expect(row?.session_hash, "demo visitor has a session hash").toMatch(/^[0-9a-f]{64}$/);
+  return row.session_hash;
+}
+
+export type DepositTenant = TempTenant & { serviceId: string; providerId: string; serviceName: string; price: number };
+
+/**
+ * A temporary clinic with a 20% deposit, one service, one provider and all-day hours: payment flows run
+ * here because the seeded demo clinic takes no deposit (frozen, so the demo never shows a payment screen). It is flagged
+ * is_demo on purpose: the fake payment provider is only ever allowed for demo businesses (providerForTenant), and a
+ * real business needs Moyasar keys. It has no seeded rows, so the per-visitor demo isolation plays no role here.
+ */
+export async function createDepositTenant(): Promise<DepositTenant> {
+  const biz = await createTempTenant({ label: "deposit", demo: true });
+  const price = 200;
+  const serviceName = "Deposit Check-up";
+  await rest(`tenants?id=eq.${biz.tenantId}`, { method: "PATCH", body: JSON.stringify({ deposit_enabled: true, deposit_type: "percent", deposit_value: 20, currency: "SAR" }) });
+  const [svc] = (await rest("services", { method: "POST", body: JSON.stringify({ tenant_id: biz.tenantId, name_ar: "فحص", name_en: serviceName, duration_min: 30, price }) })) as { id: string }[];
+  const [prov] = (await rest("providers", { method: "POST", body: JSON.stringify({ tenant_id: biz.tenantId, name_ar: "د. اختبار", name_en: "Dr. Deposit" }) })) as { id: string }[];
+  await rest("provider_services", { method: "POST", body: JSON.stringify({ tenant_id: biz.tenantId, provider_id: prov.id, service_id: svc.id }) });
+  await rest("working_hours", { method: "POST", body: JSON.stringify([0, 1, 2, 3, 4, 5, 6].map((d) => ({ tenant_id: biz.tenantId, provider_id: prov.id, weekday: d, start_time: "00:00", end_time: "23:59" }))) });
+  return { ...biz, serviceId: svc.id, providerId: prov.id, serviceName, price };
 }

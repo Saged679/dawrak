@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { restShared } from "./helpers/tenant";
 
 /**
  * Voice notes in the chat widget. Chromium runs with a fake microphone (see playwright.config.ts);
@@ -317,7 +318,8 @@ test.describe("dashboard voice-note marker", () => {
   for (const locale of ["en", "ar"] as const) {
     test(`${locale}: list preview and thread show the voice marker`, async ({ page }) => {
       test.skip(!URL_ || !KEY, "needs the local Supabase stack");
-      const [conv] = (await rest("conversations", { method: "POST", body: JSON.stringify({ tenant_id: CLINIC, channel: "web" }) })) as { id: string }[];
+      // a plain service-role insert into a demo tenant gets a random owner (invisible to all): make it a shared row
+      const conv = await restShared<{ id: string }>("conversations", { tenant_id: CLINIC, channel: "web" });
       try {
         await rest("messages", {
           method: "POST",

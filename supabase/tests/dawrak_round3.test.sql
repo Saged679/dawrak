@@ -85,7 +85,7 @@ reset role;
 select pg_temp.act_service();
 select is(pg_temp.exec($$select public.register_demo_user('c0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', 'owner')$$), 'OK:1', 'service_role registers a visitor (clinic owner)');
 select is((select role from public.memberships where user_id = 'c0000000-0000-4000-8000-000000000001' and tenant_id = 'd0000000-0000-4000-8000-000000000001'), 'owner', 'registration created the membership');
-select is((select expires_at > now() + interval '23 hours' and expires_at < now() + interval '25 hours' from public.demo_users where user_id = 'c0000000-0000-4000-8000-000000000001'), true, 'expires_at defaults to ~24h');
+select is((select expires_at > now() + interval '5 hours' and expires_at < now() + interval '7 hours' from public.demo_users where user_id = 'c0000000-0000-4000-8000-000000000001'), true, 'expires_at is ~6h');
 select is(pg_temp.exec($$select public.register_demo_user('c0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', 'owner')$$), 'ERR:P0001:already_registered', 'double registration refused');
 select is(pg_temp.exec($$select public.register_demo_user('c0000000-0000-4000-8000-000000000002', 'c1000000-0000-4000-8000-00000000000a', 'owner')$$), 'ERR:P0001:not_demo', 'non-demo tenant refused');
 select is(pg_temp.exec($$select public.register_demo_user('c0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001', 'provider')$$), 'ERR:P0001:invalid_role', 'provider role refused');
@@ -106,20 +106,26 @@ reset role;
 insert into auth.users (id, aud, role, email)
 select ('c9000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'authenticated', 'authenticated', 'r3-bulk-' || i || '@test.local'
   from generate_series(1, 300) i;
-insert into public.demo_users (user_id, tenant_id, role)
-select ('c9000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'd0000000-0000-4000-8000-000000000001', 'owner'
+insert into public.demo_users (user_id, tenant_id, role, created_at)
+select ('c9000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'd0000000-0000-4000-8000-000000000001', 'owner', now() - interval '2 hours' - make_interval(secs => i)
   from generate_series(1, 148) i;          -- clinic now 149
 select pg_temp.act_service();
 select is(pg_temp.exec($$select public.register_demo_user('c0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000001', 'owner')$$), 'OK:1', 'the 150th clinic visitor is accepted');
-select is(pg_temp.exec($$select public.register_demo_user('c0000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000001', 'owner')$$), 'ERR:54000:demo_tenant_users_limit', 'per-tenant cap (150) enforced');
+select is(pg_temp.exec($$select public.register_demo_user('c9000000-0000-4000-8000-000000000297', 'd0000000-0000-4000-8000-000000000001', 'owner')$$), 'OK:1', 'M1: the 151st clinic visitor is accepted (no refusal)');
 reset role;
-insert into public.demo_users (user_id, tenant_id, role)
-select ('c9000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'd0000000-0000-4000-8000-000000000002', 'owner'
+select is((select count(*)::int from public.demo_users where tenant_id = 'd0000000-0000-4000-8000-000000000001'), 150, 'M1: the clinic stays at 150 (oldest visitor evicted)');
+select is((select count(*)::int from public.demo_users where user_id = 'c9000000-0000-4000-8000-000000000148'), 0, 'M1: the OLDEST clinic visitor was evicted');
+select is((select count(*)::int from auth.users where id = 'c9000000-0000-4000-8000-000000000148'), 0, 'M1: its auth user is gone too');
+select is((select count(*)::int from public.demo_users where user_id = 'c0000000-0000-4000-8000-000000000001'), 1, 'M1: newer visitors survive');
+insert into public.demo_users (user_id, tenant_id, role, created_at)
+select ('c9000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'd0000000-0000-4000-8000-000000000002', 'owner', now() - interval '2 hours' - make_interval(secs => i)
   from generate_series(149, 296) i;        -- salon: V2 + 148 = 149; total 150 + 149 = 299
 select pg_temp.act_service();
 select is(pg_temp.exec($$select public.register_demo_user('c0000000-0000-4000-8000-000000000004', 'c1000000-0000-4000-8000-000000000003', 'owner')$$), 'OK:1', 'the 300th visitor overall is accepted (third demo tenant)');
-select is(pg_temp.exec($$select public.register_demo_user('c9000000-0000-4000-8000-000000000300', 'c1000000-0000-4000-8000-000000000003', 'owner')$$), 'ERR:54000:demo_users_limit', 'global cap (300) enforced');
+select is(pg_temp.exec($$select public.register_demo_user('c9000000-0000-4000-8000-000000000300', 'c1000000-0000-4000-8000-000000000003', 'owner')$$), 'OK:1', 'M1: a full demo (300) still accepts a new visitor');
 reset role;
+select is((select count(*)::int from public.demo_users), 300, 'M1: global count stays at 300 (oldest evicted)');
+select is((select count(*)::int from public.demo_users where user_id = 'c9000000-0000-4000-8000-000000000296'), 0, 'M1: the globally oldest visitor was evicted');
 delete from public.demo_users where user_id::text like 'c9000000-%';
 delete from auth.users where id::text like 'c9000000-%';
 
@@ -213,6 +219,9 @@ insert into public.demo_appointment_sessions (appointment_id, tenant_id, session
   ('c5000000-0000-4000-8000-0000000000b1', 'd0000000-0000-4000-8000-000000000001', repeat('a', 64)),
   ('c5000000-0000-4000-8000-0000000000b2', 'd0000000-0000-4000-8000-000000000001', repeat('b', 64)),
   ('c5000000-0000-4000-8000-0000000000b3', 'd0000000-0000-4000-8000-000000000001', repeat('b', 64));
+-- demo customers are owned per visitor (migration 27): A and B each own their customer row
+update public.customers set demo_session_hash = repeat('a', 64) where id = 'c4000000-0000-4000-8000-0000000000b1';
+update public.customers set demo_session_hash = repeat('b', 64) where id = 'c4000000-0000-4000-8000-0000000000b2';
 select pg_temp.act_service();
 select is((select count(*)::int from public.customer_issue_link('d0000000-0000-4000-8000-000000000001', '0511111111', null, repeat('a', 64))), 1, 'H2: visitor A gets their own link');
 select is((select count(*)::int from public.customer_issue_link('d0000000-0000-4000-8000-000000000001', '0511111111', null, repeat('b', 64))), 0, 'H2: visitor B cannot obtain visitor A''s link by phone (even with an appointment on A''s customer)');
@@ -292,9 +301,17 @@ select pg_temp.act_service();
 select is(pg_temp.exec($$insert into public.kb_documents (tenant_id, title, source_type, content) values ('c1000000-0000-4000-8000-00000000000a', 't', 'text', repeat('x', 30000000))$$), 'ERR:23514:new row for relation "kb_documents" violates check constraint "kb_documents_content_len"', 'M3a: a 30M-char document is refused even for service_role (exploit iii)');
 reset role;
 
+-- fixtures inserted by postgres into demo tenants get a random (invisible) owner; the M3b tests below act on them as
+-- shared (seeded-like) rows, so release them
+update public.appointments set demo_session_hash = null where id::text like 'c5000000-%';
+update public.customers set demo_session_hash = null where id::text like 'c4000000-%';
+-- V3 (the M3b visitor, session 'c') owns appointment b2 and one catalogue row of its own (inserted as postgres: visitors cannot insert catalogue rows any more)
+update public.appointments set demo_session_hash = repeat('c', 64) where id = 'c5000000-0000-4000-8000-0000000000b2';
+insert into public.services (tenant_id, name_ar, name_en, duration_min, buffer_min, price, created_by) values ('d0000000-0000-4000-8000-000000000001', 'خ', 'Mine', 30, 0, 10, 'c0000000-0000-4000-8000-000000000003');
 -- ===================== 9. M3b: demo catalogue / KB read-only =====================
 -- A (seeded demo owner, no created_by on seeded rows) and V (a per-visitor owner)
 insert into public.demo_users (user_id, tenant_id, role) values ('c0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000001', 'owner');
+update public.demo_users set session_hash = repeat('c', 64) where user_id = 'c0000000-0000-4000-8000-000000000003';
 insert into public.memberships (user_id, tenant_id, role) values ('c0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000001', 'owner'),
   ('c0000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000001', 'owner');
 select pg_temp.act('c0000000-0000-4000-8000-000000000003');   -- visitor V3
@@ -309,15 +326,15 @@ select is(pg_temp.exec($$delete from public.time_off where tenant_id = 'd0000000
 select is(pg_temp.exec($$delete from public.kb_documents where id = 'ab000000-0000-4000-8000-000000000001'$$), 'ERR:42501:demo_readonly', 'M3b: ... nor the seeded KB document');
 select is(pg_temp.exec($$delete from public.kb_chunks where tenant_id = 'd0000000-0000-4000-8000-000000000001'$$), 'ERR:42501:demo_readonly', 'M3b: ... nor seeded KB chunks');
 -- own rows are fine
-select is(pg_temp.exec($$insert into public.services (tenant_id, name_ar, name_en, duration_min, buffer_min, price) values ('d0000000-0000-4000-8000-000000000001', 'خ', 'Mine', 30, 0, 10)$$), 'OK:1', 'M3b: visitor can still add a service');
+select is(pg_temp.exec($$insert into public.services (tenant_id, name_ar, name_en, duration_min, buffer_min, price) values ('d0000000-0000-4000-8000-000000000001', 'خ', 'Mine', 30, 0, 10)$$), 'ERR:42501:demo_readonly', 'M3b/M3: visitors cannot add services (demo catalogue is read-only)');
 select is(pg_temp.exec($$update public.services set name_en = 'Mine v2' where name_en = 'Mine'$$), 'OK:1', 'M3b: ... and edit it');
 select is(pg_temp.exec($$insert into public.kb_documents (id, tenant_id, title, source_type, content) values ('c7000000-0000-4000-8000-0000000000d1', 'd0000000-0000-4000-8000-000000000001', 'My FAQ', 'faq', 'hello')$$), 'OK:1', 'M3b: visitor can add a FAQ document');
 select is(pg_temp.exec($$insert into public.kb_chunks (tenant_id, document_id, content) values ('d0000000-0000-4000-8000-000000000001', 'c7000000-0000-4000-8000-0000000000d1', 'chunk')$$), 'OK:1', 'M3b: ... and its chunk');
-select is(pg_temp.exec($$update public.kb_chunks set embedding = null where tenant_id = 'd0000000-0000-4000-8000-000000000001'$$), 'OK:4', 'M3b: embeddings can still be (re)written on any chunk (indexing step), 3 seeded + 1 own');
+select is(pg_temp.exec($$update public.kb_chunks set embedding = null where document_id = 'c7000000-0000-4000-8000-0000000000d1'$$), 'OK:1', 'M3b/L1: a visitor can (re)write the embedding of its OWN chunks');
 reset role;
 select pg_temp.act('c0000000-0000-4000-8000-000000000004');   -- another visitor V4
 select is(pg_temp.exec($$update public.services set name_en = 'stolen' where name_en = 'Mine v2'$$), 'ERR:42501:demo_readonly', 'M3b: another visitor cannot edit V3''s service');
-select is(pg_temp.exec($$delete from public.kb_documents where id = 'c7000000-0000-4000-8000-0000000000d1'$$), 'ERR:42501:demo_readonly', 'M3b: ... nor delete V3''s document');
+select is(pg_temp.exec($$delete from public.kb_documents where id = 'c7000000-0000-4000-8000-0000000000d1'$$), 'OK:0', 'M3b: ... nor delete V3''s document (it is invisible to V4, 0 rows)');
 reset role;
 select pg_temp.act('c0000000-0000-4000-8000-000000000003');
 select is(pg_temp.exec($$delete from public.kb_chunks where document_id = 'c7000000-0000-4000-8000-0000000000d1'$$), 'OK:1', 'M3b: visitor can delete chunks of their own document');

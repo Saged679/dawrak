@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { createDepositTenant, type DepositTenant } from "./helpers/tenant";
 
 /**
  * Deposit payment e2e with the FAKE provider (no network, no Moyasar keys). The server must run with
@@ -37,11 +38,14 @@ async function rest(path: string, init: RequestInit = {}) {
 const created: string[] = []; // customer ids to clean up
 let dayOffset = 25 + Math.floor(Math.random() * 30);
 
-/** A pending_payment appointment + pending fake payment, created straight in the database. */
-async function seedHeldPayment(slug: "demo-clinic" | "demo-salon" = "demo-clinic") {
-  const [tenant] = await rest(`tenants?slug=eq.${slug}&select=id`);
-  const [service] = await rest(`services?tenant_id=eq.${tenant.id}&select=id,price&limit=1`);
-  const [provider] = await rest(`providers?tenant_id=eq.${tenant.id}&select=id&limit=1`);
+let biz: DepositTenant;
+
+/** A pending_payment appointment + pending fake payment, created straight in the database (non-demo deposit clinic). */
+async function seedHeldPayment() {
+  const tenant = { id: biz.tenantId };
+  const slug = biz.slug;
+  const service = { id: biz.serviceId, price: biz.price };
+  const provider = { id: biz.providerId };
   const [customer] = await rest("customers", {
     method: "POST",
     body: JSON.stringify({ tenant_id: tenant.id, full_name: "Pay E2E", phone: `0555${Math.floor(Math.random() * 1e6)}` }),
@@ -92,8 +96,10 @@ test.describe("deposit payment (fake provider)", () => {
   });
   test.beforeAll(async () => {
     await rest("rate_limits?key=like.ip:*", { method: "DELETE" });
+    biz = await createDepositTenant();
   });
   test.afterAll(async () => {
+    await biz?.cleanup();
     for (const id of created) {
       await rest(`appointments?customer_id=eq.${id}`, { method: "DELETE" });
       await rest(`customers?id=eq.${id}`, { method: "DELETE" });
@@ -102,9 +108,10 @@ test.describe("deposit payment (fake provider)", () => {
 
   test("books through the UI, lands on an unguessable pay URL, pays (fake success) and the appointment is confirmed", async ({ page }) => {
     const phone = `05${Math.floor(Math.random() * 1e8).toString().padStart(8, "0")}`;
-    await page.goto("/en/c/demo-clinic");
-    await page.getByText("Check-up & Exam", { exact: true }).click();
+    await page.goto(`/en/c/${biz.slug}`);
+    await page.getByText(biz.serviceName, { exact: true }).click();
     await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByText("Dr. Deposit", { exact: true }).click();
     await page.getByRole("button", { name: "Continue" }).click();
     const slot = page.locator('input[name="slot-choice"]').nth(2);
     await slot.waitFor({ state: "attached" });
@@ -114,8 +121,7 @@ test.describe("deposit payment (fake provider)", () => {
     await page.getByLabel("Mobile number").fill(phone);
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("button", { name: "Confirm booking" }).click();
-
-    await page.waitForURL(/\/en\/c\/demo-clinic\/pay\/[A-Za-z0-9_-]{48}$/);
+    await page.waitForURL(new RegExp(`/en/c/${biz.slug}/pay/[A-Za-z0-9_-]{48}$`));
     const token = page.url().split("/pay/")[1];
     const e164 = `+966${phone.slice(1)}`;
     const [cust] = await rest(`customers?phone=eq.${encodeURIComponent(e164)}&select=id`);
@@ -138,7 +144,7 @@ test.describe("deposit payment (fake provider)", () => {
     expect(await apptStatus(pay.appointment_id)).toBe("confirmed");
 
     // returning to the pay page after paying shows the result, not a second payment form
-    await page.goto(`/en/c/demo-clinic/pay/${token}`);
+    await page.goto(`/en/c/${biz.slug}/pay/${token}`);
     await expect(page.getByTestId("pay-button")).toHaveCount(0);
   });
 
@@ -173,12 +179,12 @@ test.describe("deposit payment (fake provider)", () => {
     const s = await seedHeldPayment();
     const guessed = randomBytes(36).toString("base64url");
     for (const path of [
-      `/en/c/demo-clinic/pay/${guessed}`,
-      `/en/c/demo-clinic/pay/${guessed}/result`,
-      `/en/c/demo-clinic/pay/${guessed}/fake`,
-      `/en/c/demo-clinic/pay/${s.paymentId}`, // the row id is not a credential
-      `/en/c/demo-clinic/pay/${s.appointmentId}`,
-      `/en/c/demo-clinic/pay/1`,
+      `/en/c/${biz.slug}/pay/${guessed}`,
+      `/en/c/${biz.slug}/pay/${guessed}/result`,
+      `/en/c/${biz.slug}/pay/${guessed}/fake`,
+      `/en/c/${biz.slug}/pay/${s.paymentId}`, // the row id is not a credential
+      `/en/c/${biz.slug}/pay/${s.appointmentId}`,
+      `/en/c/${biz.slug}/pay/1`,
       `/en/c/demo-salon/pay/${s.token}`, // valid token under another clinic's path
       `/en/c/demo-salon/pay/${s.token}/result`,
       `/en/c/demo-salon/pay/${s.token}/fake`,
@@ -186,7 +192,7 @@ test.describe("deposit payment (fake provider)", () => {
       const res = await page.goto(path);
       expect(res?.status(), path).toBe(404);
     }
-    expect((await page.goto(`/en/c/demo-clinic/pay/${s.token}`))?.status()).toBe(200);
+    expect((await page.goto(`/en/c/${biz.slug}/pay/${s.token}`))?.status()).toBe(200);
   });
 
   test("the result page ignores query parameters (a forged ?status=paid changes nothing)", async ({ page }) => {

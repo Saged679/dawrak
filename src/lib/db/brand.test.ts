@@ -5,6 +5,7 @@ import {
   brandStyleVars,
   contrastRatio,
   parseBrandColor,
+  readablePair,
   readableTextOn,
 } from "./brand";
 
@@ -55,3 +56,36 @@ describe("brandStyleVars", () => {
     for (const val of Object.values(vars)) expect(val).toMatch(/^#[0-9a-f]{6}$/);
   });
 });
+
+describe("readablePair (AA for any brand colour)", () => {
+  it("leaves already readable colours unchanged", () => {
+    expect(readablePair(DEFAULT_BRAND)).toEqual({ bg: DEFAULT_BRAND, fg: "#ffffff" });
+    expect(readablePair("#ffee00")).toEqual({ bg: "#ffee00", fg: INK });
+  });
+  it("darkens mid-tones where neither white nor ink reaches 4.5:1", () => {
+    for (const c of ["#808080", "#2e8b57", "#777777", "#e91e63", "#00897b"]) {
+      expect(contrastRatio(WHITE_OR_INK(c), c)).toBeLessThan(4.5);
+      const p = readablePair(c);
+      expect(contrastRatio(p.fg, p.bg)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+  it("reaches 4.5:1 over a dense RGB grid and a pseudo-random sample, and brandStyleVars agrees", () => {
+    let seed = 12345;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const hexes: string[] = [];
+    for (let r = 0; r < 256; r += 17) for (let g = 0; g < 256; g += 17) for (let b = 0; b < 256; b += 17)
+      hexes.push("#" + [r, g, b].map((c) => c.toString(16).padStart(2, "0")).join(""));
+    for (let i = 0; i < 3000; i++)
+      hexes.push("#" + [0, 0, 0].map(() => Math.floor(rnd() * 256).toString(16).padStart(2, "0")).join(""));
+    for (const hex of hexes) {
+      const p = readablePair(hex);
+      expect(contrastRatio(p.fg, p.bg), hex).toBeGreaterThanOrEqual(4.5);
+      const vars = brandStyleVars(hex);
+      expect(contrastRatio(vars["--brand-fg"], vars["--cobalt"]), hex).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
+
+function WHITE_OR_INK(c: string): string {
+  return readableTextOn(c);
+}

@@ -8,7 +8,7 @@ import { TENANT, fakeDb, scriptedModel, tenantRow } from "./helpers";
 function req(body: unknown, headers: Record<string, string> = {}) {
   return new Request("http://localhost/api/chat", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": "1.2.3.4", ...headers },
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", "x-forwarded-for": "1.2.3.4", ...headers },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
@@ -39,7 +39,11 @@ describe("POST /api/chat handler", () => {
     const roles = s.writes.filter((w) => w.table === "messages").map((w) => (w.payload as { role: string }).role);
     expect(roles).toEqual(["user", "assistant"]);
     const keys = s.rpcCalls.filter((c) => c.fn === "check_rate_limit").map((c) => c.args.p_key);
-    expect(keys).toEqual([expect.stringMatching(/^ip:[0-9a-f]{32}:chat$/), `tenant:${TENANT}:chat:day`]);
+    expect(keys).toEqual([
+      expect.stringMatching(/^ip:[0-9a-f]{32}:chat$/),
+      expect.stringMatching(/^ip:[0-9a-f]{32}:chat:day$/),
+      `tenant:${TENANT}:chat:day`,
+    ]);
   });
 
   it("rejects over the per-IP limit with 429 before touching the model", async () => {
@@ -47,7 +51,8 @@ describe("POST /api/chat handler", () => {
     const res = await s.call(req(ok));
     expect(res.status).toBe(429);
     expect((await res.json()).error.code).toBe("rate_limited");
-    expect(res.headers.get("Retry-After")).toBe(String(CHAT_LIMITS.ip.windowSeconds));
+    expect(Number(res.headers.get("Retry-After"))).toBeGreaterThanOrEqual(1);
+    expect(Number(res.headers.get("Retry-After"))).toBeLessThanOrEqual(CHAT_LIMITS.ip.windowSeconds);
     expect(s.model.doStreamCalls).toHaveLength(0);
     expect(s.writes).toHaveLength(0);
   });

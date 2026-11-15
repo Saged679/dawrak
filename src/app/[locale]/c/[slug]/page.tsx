@@ -11,6 +11,7 @@ import { ClinicFacts } from "@/components/booking/clinic-facts";
 import { buildClinicFacts } from "@/lib/geo/clinic-facts";
 import { routing } from "@/i18n/routing";
 import { buildClinicJsonLd, serializeJsonLd } from "@/lib/seo/jsonld";
+import { buildClinicBreadcrumbJsonLd } from "@/components/booking/breadcrumb-jsonld";
 import { buildClinicMetadata } from "@/lib/seo/metadata";
 import { siteUrl } from "@/lib/seo/site";
 import {
@@ -41,15 +42,23 @@ export default async function ClinicPage({ params }: Props) {
   const tenant = await loadTenant(slug);
   if (!tenant) notFound();
 
-  const [services, hours, t] = await Promise.all([
+  const [services, hours, t, tSeo] = await Promise.all([
     listServices(tenant.id),
     getOpeningHours(tenant.id),
     getTranslations("Clinic"),
+    getTranslations("Seo"),
   ]);
   const providersByService = await listProvidersByService(tenant.id, services);
   const name = locale === "en" ? tenant.name_en || tenant.name_ar : tenant.name_ar;
 
   const jsonLd = buildClinicJsonLd({ base: siteUrl(), locale, tenant, hours });
+  const breadcrumb = buildClinicBreadcrumbJsonLd({
+    base: siteUrl(),
+    locale,
+    slug,
+    siteName: tSeo("siteName"),
+    businessName: name,
+  });
 
   // Only strictly validated #rrggbb values (or the default) ever reach the style attribute.
   const brandVars = brandStyleVars(tenant.brand_color) as CSSProperties;
@@ -59,6 +68,7 @@ export default async function ClinicPage({ params }: Props) {
       {jsonLd ? (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       ) : null}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumb) }} />
       <a
         href="#booking"
         className="sr-only focus:not-sr-only focus:absolute focus:start-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-paper focus:px-3 focus:py-2 focus:text-cobalt focus-visible:outline-2 focus-visible:outline-ring"

@@ -13,13 +13,13 @@ export async function UserMenu({
   locale: string;
 }) {
   const t = await getTranslations("Dash");
-  const name = session.fullName || session.email;
+  const name = session.fullName === "Demo visitor" ? t("menu.demoVisitor") : session.fullName || session.email;
   const others = session.memberships.filter((m) => m.tenant.id !== session.tenant.id);
 
   return (
     <details className="group relative">
       <summary
-        aria-label={t("menu.label")}
+        aria-label={`${name}, ${t("menu.label")}`}
         className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-full bg-white/15 ps-3 pe-2 text-sm font-medium text-white outline-none hover:bg-white/25 focus-visible:ring-3 focus-visible:ring-saffron [&::-webkit-details-marker]:hidden"
       >
         <span className="max-w-[7rem] truncate sm:max-w-[10rem]">{name}</span>

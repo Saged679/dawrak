@@ -26,6 +26,8 @@ export type CalendarItem = {
   serviceId: string;
   service: Named;
   customer: { full_name: string; phone: string };
+  /** Demo business, seeded appointment: the database refuses changes, so the dialog disables the actions. */
+  locked: boolean;
   dateKey: string;
   startMin: number;
   endMin: number;
@@ -164,9 +166,9 @@ export function CalendarView(props: CalendarViewProps) {
                       <span className="flex items-center gap-1 font-semibold">
                         <Icon className="size-3 shrink-0" aria-hidden />
                         <span className="truncate">{item.customer.full_name}</span>
-                      </span>
+                      </span>{" "}
                       <span className="truncate">
-                        {formatTime(item.startsAt, timezone, locale)} · {label}
+                        {formatTime(item.startsAt, timezone, locale)} {label}
                       </span>
                     </button>
                   );

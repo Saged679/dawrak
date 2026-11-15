@@ -716,6 +716,7 @@ export function createTools(ctx: ToolContext) {
                 p_email: emailRaw ?? null,
                 p_source: "chat",
                 p_locale: ctx.locale,
+                p_session_hash: ctx.sessionHash ?? null,
               });
               if (error) return mapDbError(error);
               const r = data as Record<string, unknown> & { customer_token?: string };
@@ -916,7 +917,7 @@ export function createTools(ctx: ToolContext) {
       inputSchema: T(z.strictObject({ query: z.string().trim().min(2).max(300) })),
       execute: ({ query }) =>
         safe(async () => {
-          const { hits, semanticAvailable } = await hybridSearch(ctx.db, ctx.tenantId, query, ctx.embedQuery);
+          const { hits, semanticAvailable } = await hybridSearch(ctx.db, ctx.tenantId, query, ctx.embedQuery, ctx.sessionHash ?? null);
           return {
             ok: true as const,
             untrusted_data: true,

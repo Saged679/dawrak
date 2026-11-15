@@ -32,10 +32,15 @@ export async function ClinicHeader({
     <header className="bg-cobalt text-(--brand-fg)">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-6 sm:px-6 sm:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full bg-(--brand-fg)/15 px-3 py-1 text-sm font-medium">
+          <span className="inline-flex items-center gap-2 rounded-full bg-(--brand-fg) px-3 py-1 text-sm font-medium text-cobalt">
             <Icon className="size-4" aria-hidden />
             {t(`kind.${kind}`)}
-            {isDemo ? <span className="text-saffron">- {t("demoBadge")}</span> : null}
+            {isDemo ? (
+              <>
+                <span aria-hidden>·</span>
+                <span>{t("demoBadge")}</span>
+              </>
+            ) : null}
           </span>
           <div className="flex items-center gap-1">
           <Link
@@ -58,7 +63,7 @@ export async function ClinicHeader({
           <h2 id="hours-title" className="sr-only">
             {t("hoursTitle")}
           </h2>
-          <div className="flex items-start gap-2 text-sm text-(--brand-fg)/90">
+          <div className="flex items-start gap-2 text-sm text-(--brand-fg)">
             <Clock3 className="mt-1 size-4 shrink-0" aria-hidden />
             {groups.length === 0 ? (
               <p>{t("hoursUnknown")}</p>
@@ -82,8 +87,8 @@ export async function ClinicHeader({
               </ul>
             )}
           </div>
-          <p className="mt-1 ps-6 text-xs text-(--brand-fg)/75">{t("timezone", { zone: timezone })}</p>
-          {depositEnabled ? <p className="mt-1 ps-6 text-xs text-(--brand-fg)/85">{t("depositNote")}</p> : null}
+          <p className="mt-1 ps-6 text-xs text-(--brand-fg)">{t("timezone", { zone: timezone })}</p>
+          {depositEnabled ? <p className="mt-1 ps-6 text-xs text-(--brand-fg)">{t("depositNote")}</p> : null}
         </section>
       </div>
     </header>

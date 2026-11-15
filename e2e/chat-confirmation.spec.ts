@@ -1,3 +1,4 @@
+import { ownIpHeaders } from "./helpers/site";
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
@@ -72,7 +73,7 @@ test.describe("chat confirmation protocol (widget + mock model)", () => {
     return cust.length;
   };
   async function open(page: Page) {
-    await page.setExtraHTTPHeaders({ "x-dawrak-e2e-model": "1" });
+    await page.setExtraHTTPHeaders(ownIpHeaders({ "x-dawrak-e2e-model": "1" }));
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/en/c/demo-salon", { waitUntil: "networkidle" });
     return page.getByTestId("chat-widget");
@@ -144,9 +145,10 @@ test.describe("chat confirmation protocol (widget + mock model)", () => {
     const chat = await open(page);
     await chat.getByLabel("Your message to the assistant").fill(`BOOKNOW ${JSON.stringify(body)}`);
     await chat.getByRole("button", { name: "Send" }).click();
-    const reply = chat.getByText(/RESULT .*confirmation_required/);
-    await expect(reply).toBeVisible({ timeout: 30_000 });
-    await expect(reply).toContainText("confirm the summary first");
+    // The turn guard (src/lib/agent/turn-guard.ts) replaces the model's raw "RESULT ... confirmation_required"
+    // text with a safe, honest sentence: nothing was booked, ask the visitor to confirm again.
+    await expect(chat.getByText("That has not gone through yet: no appointment was booked", { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(chat.getByText(/RESULT .*confirmation_required/)).toHaveCount(0);
     expect(await bookedFor(phone)).toBe(0);
   });
 });

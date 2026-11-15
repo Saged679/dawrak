@@ -25,6 +25,8 @@ export type RunAgentInput = {
   conversationId: string;
   message: AgentMessage;
   locale: Locale;
+  /** Demo tenants only: SHA-256 of the visitor's session cookie. Owner of rows the agent creates, scope of the knowledge search. */
+  sessionHash?: string | null;
   /** Earlier turns (oldest first), already loaded by the channel/route. */
   history?: ModelMessage[];
   /** Called with the final assistant text once the stream is done (for persistence). */
@@ -125,6 +127,7 @@ export async function runAgent(input: RunAgentInput) {
     locale: input.locale,
     embedQuery: input.deps?.embedQuery ?? defaultEmbedQuery,
     afterBooking: input.afterBooking,
+    sessionHash: input.sessionHash ?? null,
   });
   // Record every tool outcome of this turn (used to decide what may be stored as the final reply).
   const tools = Object.fromEntries(

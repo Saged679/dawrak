@@ -145,12 +145,14 @@ export async function searchKnowledge(
   query: string,
   k = 4,
   embedder: (t: string) => Promise<number[]> = embedQuery,
+  sessionHash: string | null = null,
 ) {
   const vector = await embedder(query);
   const { data, error } = await db.rpc("match_kb_chunks", {
     p_tenant_id: tenantId,
     p_embedding: toPgVector(vector),
     p_k: k,
+    p_session_hash: sessionHash,
   });
   if (error) throw error;
   return (data ?? []) as {

@@ -2,7 +2,7 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
 import type { AppointmentStatus } from "@/lib/auth/roles";
 import type { SessionContext } from "@/lib/auth/session";
-import { isLockedInDemo } from "./demo-lock";
+import { isCatalogLockedInDemo } from "./demo-lock";
 import {
   customerSearchFilter,
   summarizeVisits,
@@ -66,7 +66,7 @@ export async function listServices(session: SessionContext): Promise<ServiceRow[
   const links = rows.length ? await linksFor(session, {}) : [];
   return rows.map((r) => ({
     ...r,
-    locked: isLockedInDemo(session, r.created_by),
+    locked: isCatalogLockedInDemo(session),
     price: Number(r.price),
     providerIds: links.filter((l) => l.service_id === r.id).map((l) => l.provider_id),
   }));
@@ -84,7 +84,7 @@ export async function getService(session: SessionContext, id: string): Promise<S
   if (!data) return null;
   const row = data as unknown as RawService;
   const links = await linksFor(session, { serviceIds: [id] });
-  return { ...row, locked: isLockedInDemo(session, row.created_by), price: Number(row.price), providerIds: links.map((l) => l.provider_id) };
+  return { ...row, locked: isCatalogLockedInDemo(session), price: Number(row.price), providerIds: links.map((l) => l.provider_id) };
 }
 
 // ---------- providers ----------
@@ -116,7 +116,7 @@ export async function listManagedProviders(session: SessionContext): Promise<Pro
   if (error) throw error;
   return ((data ?? []) as unknown as (Omit<ProviderFull, "locked"> & { created_by: string | null })[]).map((r) => ({
     ...r,
-    locked: isLockedInDemo(session, r.created_by),
+    locked: isCatalogLockedInDemo(session),
   }));
 }
 
@@ -135,7 +135,7 @@ export async function getManagedProvider(
   if (error) throw error;
   if (!data) return null;
   const r = data as unknown as Omit<ProviderFull, "locked"> & { created_by: string | null };
-  return { ...r, locked: isLockedInDemo(session, r.created_by) };
+  return { ...r, locked: isCatalogLockedInDemo(session) };
 }
 
 export type WorkingHourRow = { weekday: number; start: string; end: string; locked: boolean };
@@ -157,7 +157,7 @@ export async function listProviderHours(
     weekday: r.weekday,
     start: trimSeconds(r.start_time),
     end: trimSeconds(r.end_time),
-    locked: isLockedInDemo(session, r.created_by),
+    locked: isCatalogLockedInDemo(session),
   }));
 }
 
@@ -180,7 +180,7 @@ export async function listProviderTimeOff(
     .limit(100);
   if (error) throw error;
   return ((data ?? []) as { id: string; starts_at: string; ends_at: string; reason: string | null; created_by: string | null }[]).map(
-    (r) => ({ id: r.id, startsAt: r.starts_at, endsAt: r.ends_at, reason: r.reason, locked: isLockedInDemo(session, r.created_by) }),
+    (r) => ({ id: r.id, startsAt: r.starts_at, endsAt: r.ends_at, reason: r.reason, locked: isCatalogLockedInDemo(session) }),
   );
 }
 

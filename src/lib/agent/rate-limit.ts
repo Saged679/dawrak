@@ -3,6 +3,8 @@ import type { AgentDb } from "./types";
 export const CHAT_LIMITS = {
   /** per IP: 20 messages / 10 minutes */
   ip: { max: 20, window: "10 minutes", windowSeconds: 600 },
+  /** per IP: 60 messages / day (a /64 for IPv6), on top of the 10-minute window and the tenant cap */
+  ipDay: { max: 60, window: "1 day", windowSeconds: 86400 },
   /** per tenant: 300 messages / day (keeps the Gemini free tier safe) */
   tenantDay: { max: 300, window: "1 day", windowSeconds: 86400 },
   /**
@@ -15,6 +17,15 @@ export const CHAT_LIMITS = {
 
 export type LimitResult = { ok: true } | { ok: false; scope: "ip" | "tenant"; retryAfterSeconds: number };
 
+/**
+ * Seconds until the fixed window that check_rate_limit aligns to the epoch (floor(epoch / window) * window) rolls over,
+ * which is when the counter restarts. Always 1..windowSeconds.
+ */
+export function retryAfter(windowSeconds: number, nowMs: number = Date.now()): number {
+  const w = windowSeconds * 1000;
+  return Math.max(1, Math.ceil((w - (nowMs % w)) / 1000));
+}
+
 /** Uses public.check_rate_limit (service role). Throws if the DB call fails (caller fails closed). */
 async function hit(db: AgentDb, key: string, max: number, window: string): Promise<boolean> {
   const { data, error } = await db.rpc("check_rate_limit", { p_key: key, p_max: max, p_window: window });
@@ -26,26 +37,33 @@ export async function checkIpLimit(db: AgentDb, ip: string): Promise<LimitResult
   const l = CHAT_LIMITS.ip;
   return (await hit(db, `ip:${ip}:chat`, l.max, l.window))
     ? { ok: true }
-    : { ok: false, scope: "ip", retryAfterSeconds: l.windowSeconds };
+    : { ok: false, scope: "ip", retryAfterSeconds: retryAfter(l.windowSeconds) };
+}
+
+export async function checkIpDayLimit(db: AgentDb, ip: string): Promise<LimitResult> {
+  const l = CHAT_LIMITS.ipDay;
+  return (await hit(db, `ip:${ip}:chat:day`, l.max, l.window))
+    ? { ok: true }
+    : { ok: false, scope: "ip", retryAfterSeconds: retryAfter(l.windowSeconds) };
 }
 
 export async function checkTenantLimit(db: AgentDb, tenantId: string): Promise<LimitResult> {
   const l = CHAT_LIMITS.tenantDay;
   return (await hit(db, `tenant:${tenantId}:chat:day`, l.max, l.window))
     ? { ok: true }
-    : { ok: false, scope: "tenant", retryAfterSeconds: l.windowSeconds };
+    : { ok: false, scope: "tenant", retryAfterSeconds: retryAfter(l.windowSeconds) };
 }
 
 export async function checkAudioIpLimit(db: AgentDb, ip: string): Promise<LimitResult> {
   const l = CHAT_LIMITS.audioIp;
   return (await hit(db, `ip:${ip}:chat:audio`, l.max, l.window))
     ? { ok: true }
-    : { ok: false, scope: "ip", retryAfterSeconds: l.windowSeconds };
+    : { ok: false, scope: "ip", retryAfterSeconds: retryAfter(l.windowSeconds) };
 }
 
 export async function checkAudioTenantLimit(db: AgentDb, tenantId: string): Promise<LimitResult> {
   const l = CHAT_LIMITS.audioTenantDay;
   return (await hit(db, `tenant:${tenantId}:chat:audio:day`, l.max, l.window))
     ? { ok: true }
-    : { ok: false, scope: "tenant", retryAfterSeconds: l.windowSeconds };
+    : { ok: false, scope: "tenant", retryAfterSeconds: retryAfter(l.windowSeconds) };
 }

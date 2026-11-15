@@ -51,8 +51,7 @@ export function SettingsForm({
   const currencies = [...new Set<string>([...CURRENCIES, initial.currency])];
 
   const colorOk = v.brand_color === "" || BRAND_COLOR.test(v.brand_color);
-  const previewBg = colorOk && v.brand_color !== "" ? v.brand_color : "#2549d1";
-  const previewFg = readableOn(previewBg);
+  const { bg: previewBg, fg: previewFg } = readableOn(colorOk && v.brand_color !== "" ? v.brand_color : "#2549d1");
   const Icon = kind === "salon" ? Scissors : Stethoscope;
   const previewName = locale === "en" ? v.name_en || v.name_ar : v.name_ar || v.name_en;
 
@@ -122,6 +121,7 @@ export function SettingsForm({
             type="checkbox"
             name="deposit_enabled"
             checked={v.deposit_enabled}
+            disabled={locked}
             onChange={(e) => setV((p) => ({ ...p, deposit_enabled: e.target.checked }))}
             className="size-5 accent-[var(--cobalt)]"
           />
@@ -129,7 +129,7 @@ export function SettingsForm({
         </label>
         <Field label={t("fields.depositType")} error={invalid("deposit_type")}>
           {(p) => (
-            <select {...p} name="deposit_type" value={v.deposit_type} onChange={set("deposit_type")} className={inputClass}>
+            <select {...p} name="deposit_type" disabled={locked} value={v.deposit_type} onChange={set("deposit_type")} className={inputClass}>
               <option value="fixed">{t("depositTypes.fixed")}</option>
               <option value="percent">{t("depositTypes.percent")}</option>
             </select>
@@ -140,7 +140,7 @@ export function SettingsForm({
           hint={t("hints.deposit")}
           error={invalid("deposit_value")}
         >
-          {(p) => <input {...p} name="deposit_value" type="number" inputMode="decimal" min={0} max={v.deposit_type === "percent" ? 100 : undefined} step="0.01" dir="ltr" value={v.deposit_value} onChange={set("deposit_value")} className={inputClass} />}
+          {(p) => <input {...p} name="deposit_value" disabled={locked} type="number" inputMode="decimal" min={0} max={v.deposit_type === "percent" ? 100 : undefined} step="0.01" dir="ltr" value={v.deposit_value} onChange={set("deposit_value")} className={inputClass} />}
         </Field>
       </fieldset>
 
@@ -174,7 +174,7 @@ export function SettingsForm({
           >
             <span
               className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium"
-              style={{ backgroundColor: `${previewFg}26` }}
+              style={{ backgroundColor: previewFg, color: previewBg }}
             >
               <Icon className="size-4" aria-hidden />
               {tk(kind)}

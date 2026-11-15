@@ -125,14 +125,14 @@ truncate pg_temp.ctok;
 
 -- ===================== H1. service-role-only functions, 90-day horizon, 3 booking cap =====================
 select is((select count(*)::int from unnest(array[
-    'public.create_public_booking(uuid,uuid,uuid,timestamptz,text,text,text,text,text)',
+    'public.create_public_booking(uuid,uuid,uuid,timestamptz,text,text,text,text,text,text)',
     'public.customer_get_appointments(text)', 'public.customer_cancel_appointment(text,uuid)',
     'public.customer_reschedule_appointment(text,uuid,timestamptz)', 'public.get_available_slots(uuid,uuid,uuid,date,date,int)',
     'public.issue_customer_magic_link(uuid,text,boolean)']) f
     where has_function_privilege('anon', to_regprocedure(f)::oid, 'execute') or has_function_privilege('authenticated', to_regprocedure(f)::oid, 'execute')),
   0, 'H1: anon and authenticated cannot execute any booking / customer / slots function');
 select is((select count(*)::int from unnest(array[
-    'public.create_public_booking(uuid,uuid,uuid,timestamptz,text,text,text,text,text)',
+    'public.create_public_booking(uuid,uuid,uuid,timestamptz,text,text,text,text,text,text)',
     'public.customer_get_appointments(text)', 'public.customer_cancel_appointment(text,uuid)',
     'public.customer_reschedule_appointment(text,uuid,timestamptz)', 'public.get_available_slots(uuid,uuid,uuid,date,date,int)',
     'public.issue_customer_magic_link(uuid,text,boolean)']) f
@@ -189,7 +189,7 @@ select pg_temp.lk(pg_temp.exec($$update public.tenants set is_demo = false where
 select pg_temp.lk(pg_temp.exec($$update public.tenants set slug = 'hacked' where slug = 'demo-clinic'$$), 'ERR:42501%', 'H2: owner cannot change slug');
 select pg_temp.lk(pg_temp.exec($$update public.tenants set kind = 'salon' where slug = 'demo-clinic'$$), 'ERR:42501%', 'H2: owner cannot change kind');
 select is(pg_temp.exec($$update public.tenants set deposit_value = 60 where slug = 'demo-clinic'$$),
-  'OK:1', 'H2: owner can still edit allowed settings columns');
+  'ERR:42501:demo_readonly', 'H2: demo owner cannot edit the (frozen) deposit settings');
 reset role; select pg_temp.act('7a000000-0000-4000-8000-000000000001');
 select pg_temp.lk(pg_temp.exec($$update public.tenants set is_demo = true where slug = 'sec-x'$$), 'ERR:42501%', 'H2: regular tenant owner cannot set is_demo either');
 reset role;
@@ -309,13 +309,14 @@ select pg_temp.lk(pg_temp.exec($$update public.memberships set role = 'provider'
   'ERR:42501:demo_readonly%', 'M3: demo owner cannot change memberships');
 select pg_temp.lk(pg_temp.exec($$delete from public.memberships where user_id = 'a0000000-0000-4000-8000-000000000002'$$),
   'ERR:42501:demo_readonly%', 'M3: demo owner cannot delete memberships');
+select is(pg_temp.exec($$insert into public.kb_documents (id, tenant_id, title) values ('ab000000-0000-4000-8000-0000000000f1','d0000000-0000-4000-8000-000000000001','mine')$$), 'OK:1', 'M3: demo owner creates an own document');
 select pg_temp.lk(pg_temp.exec($$insert into public.kb_chunks (tenant_id, document_id, chunk_index, content)
-  select 'd0000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-000000000001', g, 'spam' from generate_series(1, 250) g$$),
+  select 'd0000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-0000000000f1', g, 'spam' from generate_series(1, 250) g$$),
   'ERR:54000:demo_limit%', 'M3: demo tenant kb_chunks capped at 200 (bulk insert of 250 rejected)');
 select pg_temp.lk(pg_temp.exec($$insert into public.kb_documents (tenant_id, title) select 'd0000000-0000-4000-8000-000000000001', 'spam ' || g from generate_series(1, 25) g$$),
   'ERR:54000:demo_limit%', 'M3: demo tenant kb_documents capped at 20');
 select is(pg_temp.exec($$insert into public.kb_chunks (tenant_id, document_id, chunk_index, content)
-  select 'd0000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-000000000001', g, 'ok' from generate_series(10, 12) g$$),
+  select 'd0000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-0000000000f1', g, 'ok' from generate_series(10, 12) g$$),
   'OK:3', 'M3: a few KB chunks are still fine on the demo tenant');
 reset role;
 select pg_temp.act_service();
@@ -357,7 +358,7 @@ select pg_temp.lk(pg_temp.exec($$update public.tenants set name_ar = 'x' where i
 select pg_temp.lk(pg_temp.exec($$update public.tenants set logo_url = 'http://evil/x.png' where id = 'd0000000-0000-4000-8000-000000000001'$$), 'ERR:42501:demo_readonly%', 'D1: demo owner cannot change logo');
 select pg_temp.lk(pg_temp.exec($$update public.tenants set brand_color = '#000000' where id = 'd0000000-0000-4000-8000-000000000001'$$), 'ERR:42501:demo_readonly%', 'D1: demo owner cannot change brand colour');
 select pg_temp.lk(pg_temp.exec($$update public.tenants set is_demo = false where id = 'd0000000-0000-4000-8000-000000000001'$$), 'ERR:42501:%', 'D1: demo owner cannot clear is_demo');
-select is(pg_temp.exec($$update public.tenants set deposit_value = 60 where id = 'd0000000-0000-4000-8000-000000000001'$$), 'OK:1', 'D1: deposit settings stay editable on demo');
+select is(pg_temp.exec($$update public.tenants set deposit_value = 60 where id = 'd0000000-0000-4000-8000-000000000001'$$), 'ERR:42501:demo_readonly', 'D1: deposit settings are frozen on demo');
 select is(pg_temp.exec($$update public.tenants set name_en = name_en where id = 'd0000000-0000-4000-8000-000000000001'$$), 'OK:1', 'D1: no-op write of presentation columns is allowed');
 reset role;
 select is((select name_en from public.tenants where id = 'd0000000-0000-4000-8000-000000000001'), 'Nabd Dental Clinic', 'D1: demo name unchanged');
@@ -393,7 +394,12 @@ select public.reset_demo();
 reset role;
 select is((select name_en from public.tenants where id = 'd0000000-0000-4000-8000-000000000001'), 'Nabd Dental Clinic', 'D4: reset_demo restores the demo tenant name');
 select is((select count(*)::int from public.services where tenant_id = 'd0000000-0000-4000-8000-000000000001'), 6, 'D4: reset_demo restores seeded services');
-select is((select count(*)::int from public.appointments where tenant_id = 'd0000000-0000-4000-8000-000000000001'), 100, 'D4: reset_demo restores seeded appointments (cap does not block seed)');
+create temp table _d4_first as select count(*)::int as n from public.appointments where tenant_id = 'd0000000-0000-4000-8000-000000000001';
+select ok((select n from _d4_first) > 0, 'D4: reset_demo restores seeded appointments (cap does not block seed)');
+select pg_temp.act_service();
+select public.reset_demo();
+reset role;
+select is((select count(*)::int from public.appointments where tenant_id = 'd0000000-0000-4000-8000-000000000001'), (select n from _d4_first), 'D4: a second reset_demo yields the same seeded appointment count (date-independent)');
 
 select * from finish();
 rollback;

@@ -1,6 +1,7 @@
+import { ownIpHeaders } from "./helpers/site";
 import { createHash } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
-import { SERVICE_KEY, SUPABASE_URL, rest } from "./helpers/tenant";
+import { SERVICE_KEY, SUPABASE_URL, createDepositTenant, rest, type DepositTenant } from "./helpers/tenant";
 
 /**
  * A deposit clinic on a server with NO payment provider configured (the "no-payments" project in
@@ -18,10 +19,8 @@ async function appointmentsFor(e164: string): Promise<number> {
   return n + cust.length * 1000; // any customer row at all counts as "something was created"
 }
 
-async function demoClinic() {
-  const [tenant] = await rest("tenants?slug=eq.demo-clinic&select=id");
-  return tenant.id as string;
-}
+let biz: DepositTenant; // a temporary clinic with a deposit (the seeded demo clinic has none)
+const demoClinic = async () => biz.tenantId;
 
 test.describe("deposit clinic without a payment provider", () => {
   test.skip(!SUPABASE_URL || !SERVICE_KEY, "needs the local Supabase stack");
@@ -30,14 +29,19 @@ test.describe("deposit clinic without a payment provider", () => {
   });
   test.beforeAll(async () => {
     await rest("rate_limits?key=like.*", { method: "DELETE" });
+    biz = await createDepositTenant();
+  });
+  test.afterAll(async () => {
+    await biz?.cleanup();
   });
 
   test("web form: friendly message, nothing created, phone limit untouched", async ({ page }) => {
     const digits = Math.floor(Math.random() * 1e8).toString().padStart(8, "0");
     const e164 = `+9665${digits}`;
-    await page.goto("/en/c/demo-clinic");
-    await page.getByText("Check-up & Exam", { exact: true }).click();
+    await page.goto(`/en/c/${biz.slug}`);
+    await page.getByText(biz.serviceName, { exact: true }).click();
     await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByText("Dr. Deposit", { exact: true }).click();
     await page.getByRole("button", { name: "Continue" }).click();
     const slot = page.locator('input[name="slot-choice"]').first();
     await slot.waitFor({ state: "attached" });
@@ -59,9 +63,9 @@ test.describe("deposit clinic without a payment provider", () => {
   });
 
   test("chat: the assistant gets an honest payments_unavailable result and no booking exists", async ({ page }) => {
-    await page.setExtraHTTPHeaders({ "x-dawrak-e2e-model": "1" });
+    await page.setExtraHTTPHeaders(ownIpHeaders({ "x-dawrak-e2e-model": "1" }));
     const tenantId = await demoClinic();
-    const [service] = await rest(`services?tenant_id=eq.${tenantId}&select=id&limit=1`);
+    const service = { id: biz.serviceId };
     const from = new Date(Date.now() + 6 * 86_400_000).toISOString().slice(0, 10);
     const to = new Date(Date.now() + 12 * 86_400_000).toISOString().slice(0, 10);
     const slots = (await rest("rpc/get_available_slots", {
@@ -75,7 +79,7 @@ test.describe("deposit clinic without a payment provider", () => {
     // prepare_booking refuses BEFORE asking the visitor to confirm: no summary, no token, no booking
     const cmd = `PREPARE ${JSON.stringify({ service_id: service.id, provider_id: slots[0].slot_provider_id, date: `${g("year")}-${g("month")}-${g("day")}`, time: `${g("hour")}:${g("minute")}`, full_name: "Chat NoPay", phone: e164 })}`;
 
-    await sendChat(page, cmd);
+    await sendChat(page, biz.slug, cmd);
     const reply = page.getByTestId("chat-widget").getByText(/RESULT /);
     await expect(reply).toBeVisible({ timeout: 30_000 });
     const text = await reply.innerText();
@@ -91,9 +95,9 @@ test.describe("deposit clinic without a payment provider", () => {
   });
 });
 
-async function sendChat(page: Page, message: string) {
+async function sendChat(page: Page, slug: string, message: string) {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/en/c/demo-clinic", { waitUntil: "networkidle" });
+  await page.goto(`/en/c/${slug}`, { waitUntil: "networkidle" });
   const chat = page.getByTestId("chat-widget");
   await chat.getByLabel("Your message to the assistant").fill(message);
   await chat.getByRole("button", { name: "Send" }).click();

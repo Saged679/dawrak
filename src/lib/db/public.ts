@@ -158,6 +158,8 @@ export async function getSlots(args: {
 export async function createBooking(
   tenantId: string,
   input: BookingInput,
+  /** Demo tenants: SHA-256 of the visitor's session cookie = owner of the new customer and appointment. */
+  sessionHash: string | null = null,
 ): Promise<
   | { ok: true; booking: BookingResult; customerToken: string | null }
   | { ok: false; code: BookingErrorCode }
@@ -172,6 +174,7 @@ export async function createBooking(
     p_email: input.email ?? null,
     p_source: "web",
     p_locale: input.locale,
+    p_session_hash: sessionHash,
   });
   if (error) return { ok: false, code: mapBookingError(error) };
   const d = data as Record<string, unknown>;

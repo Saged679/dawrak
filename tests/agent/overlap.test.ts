@@ -97,6 +97,8 @@ describe.skipIf(!reachable)("overlapping and per-request chat turns (real handle
       prepareArgs: { service_id: svc.id, provider_id: slot.slot_provider_id, date: local.date, time: local.time, full_name: "Overlap Tester", phone },
       details: `Book ${local.date} at ${local.time} please. I am Overlap Tester, phone ${phone}`,
       ip,
+      /** the visitor's session cookie (L5: a conversation id alone cannot resume a conversation) */
+      cookie: "" as string,
     };
     cleanup.push(async () => {
       const { data: cust } = await sb.from("customers").select("id").eq("tenant_id", tenant.id).eq("phone", phone);
@@ -113,20 +115,26 @@ describe.skipIf(!reachable)("overlapping and per-request chat turns (real handle
   const request = (w: W, text: string) =>
     new Request("http://localhost/api/chat", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": w.ip },
+      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", "x-forwarded-for": w.ip, ...(w.cookie ? { cookie: w.cookie } : {}) },
       body: JSON.stringify({ tenantSlug: "demo-salon", locale: "en", ...(w.conversationId ? { conversationId: w.conversationId } : {}), message: { type: "text", text } }),
     });
+  const keepCookie = (w: W, res: Response) => {
+    const m = /dawrak_demo_session=([A-Za-z0-9_-]+)/.exec(res.headers.get("set-cookie") ?? "");
+    if (m) w.cookie = `dawrak_demo_session=${m[1]}`;
+  };
   /** Sends one visitor message, consumes the whole reply stream, returns the tool-result text the model saw last. */
   async function send(w: W, text: string, model: ReturnType<typeof makeModel>) {
     const res = await handleChat(request(w, text), { db, model });
     expect(res.status).toBe(200);
     w.conversationId = res.headers.get("x-conversation-id") ?? w.conversationId;
+    keepCookie(w, res);
     await res.text();
   }
   /** Starts a message and returns its pending body promise WITHOUT waiting for the stream to end. */
   async function start(w: W, text: string, model: ReturnType<typeof makeModel>) {
     const res = await handleChat(request(w, text), { db, model });
     w.conversationId = res.headers.get("x-conversation-id") ?? w.conversationId;
+    keepCookie(w, res);
     return { res, done: res.text() };
   }
   const intro = (w: W) => send(w, w.details, makeModel(() => ({ text: "Hi, which doctor?" })));

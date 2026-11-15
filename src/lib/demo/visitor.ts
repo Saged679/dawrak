@@ -12,6 +12,8 @@ export type DemoVisitorDeps = {
   signInWithPassword: (email: string, password: string) => Promise<{ error: { status?: number; message: string } | null }>;
   /** removes the cookies of a half-made session (scope local) */
   signOutLocal: () => Promise<void>;
+  /** SHA-256 of the visitor's demo session cookie: binds this account to the rows its browser session owns. */
+  sessionHash?: string | null;
 };
 
 const NEVER_DELETE = /^a0000000-0000-4000-8000-00000000000[0-9]$/;
@@ -64,6 +66,7 @@ export async function createDemoVisitor(persona: DemoPersona, deps: DemoVisitorD
       p_user_id: userId,
       p_tenant_id: target.tenantId,
       p_role: target.role,
+      p_session_hash: deps.sessionHash ?? null,
     });
     if (regError) {
       const busy = regError.code === "54000" || /demo_users_limit|demo_tenant_users_limit/.test(regError.message ?? "");

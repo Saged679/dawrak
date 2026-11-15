@@ -100,7 +100,7 @@ test.describe("public booking", () => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 
-  test("books the demo clinic (deposit => pending payment) and the row is in the DB", async ({ page }) => {
+  test("books the demo clinic (no deposit => confirmed) and the row is in the DB", async ({ page }) => {
     const phone = randomSaudiPhone();
     phones.push(phone);
     await page.goto("/en/c/demo-clinic");
@@ -108,9 +108,9 @@ test.describe("public booking", () => {
     await pickSlot(page, "Check-up & Exam", 3);
     await fillDetails(page, "E2E Tester", phone);
     await page.getByRole("button", { name: "Confirm booking" }).click();
-    // deposit tenant: the booking is held and the customer is sent to the payment page
-    await page.waitForURL(/\/en\/c\/demo-clinic\/pay\/[A-Za-z0-9_-]{48}$/);
-    await expect(page.getByTestId("pay-button")).toBeVisible();
+    // the demo clinic takes no deposit: confirmed straight away, the customer lands on their booking page
+    await page.waitForURL(/[/]en[/]c[/]demo-clinic[/]my[/][A-Za-z0-9_-]{48}[?]booked=/);
+    await expect(page.getByTestId("pay-button")).toHaveCount(0);
 
     if (SUPABASE_URL && SERVICE_KEY) {
       const e164 = `+966${phone.slice(1)}`;
@@ -118,7 +118,7 @@ test.describe("public booking", () => {
         `appointments?select=id,status,source,customers!inner(phone,full_name)&customers.phone=eq.${encodeURIComponent(e164)}`,
       )) as { status: string; source: string; customers: { full_name: string } }[];
       expect(rows).toHaveLength(1);
-      expect(rows[0].status).toBe("pending_payment");
+      expect(rows[0].status).toBe("confirmed");
       expect(rows[0].source).toBe("web");
       expect(rows[0].customers.full_name).toBe("E2E Tester");
     }
@@ -146,8 +146,8 @@ test.describe("public booking", () => {
     await fillDetails(b, "Second Visitor", phoneB);
 
     await a.getByRole("button", { name: "Confirm booking" }).click();
-    // the first visitor now holds the slot and is sent to the payment page
-    await a.waitForURL(/\/pay\/[A-Za-z0-9_-]{48}$/);
+    // the first visitor now holds the slot (confirmed: the demo clinic takes no deposit)
+    await a.waitForURL(/[/]my[/][A-Za-z0-9_-]{48}[?]booked=/);
 
     await b.getByRole("button", { name: "Confirm booking" }).click();
     await expect(b.getByRole("form").getByRole("alert")).toContainText("that time was just booked");
@@ -239,6 +239,24 @@ test.describe("chat widget (mocked /api/chat)", () => {
     await chat.getByRole("button", { name: "إرسال" }).click();
     await expect(page.getByTestId("chat-error")).toContainText("انتظر بضع دقائق");
   });
+
+  for (const [status, code, text] of [
+    [429, "ip_daily_limit", "today's message limit"],
+    [403, "forbidden", "could not accept this request"],
+    [415, "unsupported_media_type", "could not read this request"],
+  ] as const) {
+    test(`maps ${status} ${code} to its own friendly message`, async ({ page }) => {
+      await page.route("**/api/chat", (route) =>
+        route.fulfill({ status, contentType: "application/json", body: JSON.stringify({ error: { code, message: "x" } }) }),
+      );
+      await page.goto("/en/c/demo-clinic");
+      const chat = page.getByTestId("chat-widget");
+      await chat.getByLabel("Your message to the assistant").fill("hello");
+      await chat.getByRole("button", { name: "Send" }).click();
+      await expect(page.getByTestId("chat-error")).toContainText(text);
+      await expect(page.getByTestId("chat-error")).not.toContainText("Something went wrong");
+    });
+  }
 
   test("real API without a Gemini key reports not configured", async ({ page }) => {
     await page.goto("/en/c/demo-clinic");

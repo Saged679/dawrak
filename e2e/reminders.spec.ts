@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { loginFixed } from "./helpers/tenant";
+import { SITE } from "./helpers/site";
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
@@ -152,7 +153,7 @@ test.describe("reminders, patient page and demo mailbox", () => {
     await expect(op.getByTestId("mailbox-message")).toHaveCount(0);
     await expect(op.locator("body")).not.toContainText("Lamsa Ladies Salon");
     // ... also with a made-up session cookie
-    await other.addCookies([{ name: "dawrak_demo_session", value: randomBytes(32).toString("base64url"), url: "http://localhost:3000" }]);
+    await other.addCookies([{ name: "dawrak_demo_session", value: randomBytes(32).toString("base64url"), url: SITE }]);
     await op.reload();
     await expect(op.getByTestId("mailbox-empty")).toBeVisible();
     await other.close();

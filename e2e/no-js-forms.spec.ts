@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
+import { createTempTenant, hasLocalDb, loginWith } from "./helpers/tenant";
 
 /**
  * Regression: pages are server-rendered, so a form submitted before React hydrates is submitted
@@ -75,17 +76,22 @@ test.describe("forms submitted before hydration never put field values in the UR
   });
 
   test("dashboard service form", async ({ page }) => {
-    // sign in with scripts (the demo button is a server action), then reload without them
-    await page.goto("/en/demo");
-    await page.getByTestId("demo-clinic-owner").click();
-    await page.waitForURL(/\/en\/dashboard/);
-    await blockClientJs(page);
-    const seen = watchNavigations(page);
-    await page.goto("/en/dashboard/services/new");
-    await page.getByLabel("Name (Arabic)").fill(NAME);
-    await page.getByLabel("Name (English)").fill(NAME);
-    await page.getByTestId("service-save").click();
-    await page.waitForLoadState("networkidle");
-    expectNoLeak(page, seen, [NAME, "name_ar", "price="]);
+    // the demo catalogue is read-only (its form is disabled), so use a temporary non-demo business owner
+    test.skip(!hasLocalDb(), "needs the local database");
+    const biz = await createTempTenant({ label: "nojs" });
+    try {
+      // sign in with scripts, then reload without them
+      await loginWith(page, biz.email, biz.password, "en");
+      await blockClientJs(page);
+      const seen = watchNavigations(page);
+      await page.goto("/en/dashboard/services/new");
+      await page.getByLabel("Name (Arabic)").fill(NAME);
+      await page.getByLabel("Name (English)").fill(NAME);
+      await page.getByTestId("service-save").click();
+      await page.waitForLoadState("networkidle");
+      expectNoLeak(page, seen, [NAME, "name_ar", "price="]);
+    } finally {
+      await biz.cleanup();
+    }
   });
 });

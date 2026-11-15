@@ -4,6 +4,7 @@
  * these functions to give an answer before the round trip.
  */
 import { z } from "zod";
+import { DEFAULT_BRAND, readablePair } from "@/lib/db/brand";
 import { isDateKey, zonedToUtc } from "./time";
 
 // ---------- small building blocks ----------
@@ -248,16 +249,12 @@ export function settingsSchema(current: { timezone: string; currency: string }) 
     });
 }
 
-/** Black or white, whichever reads better on `hex` (WCAG relative luminance). */
-export function readableOn(hex: string): "#ffffff" | "#101c3a" {
-  if (!BRAND_COLOR.test(hex)) return "#ffffff";
-  const ch = (i: number) => {
-    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  const lum = 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5);
-  // contrast with white = 1.05 / (lum + 0.05); with ink (~lum 0.011) = (lum + 0.05) / 0.061
-  return 1.05 / (lum + 0.05) >= (lum + 0.05) / 0.061 ? "#ffffff" : "#101c3a";
+/**
+ * Preview pair for a brand colour: the same surface and text colour the public page uses, so the settings
+ * preview and the booking page always agree and always reach WCAG AA (4.5:1). Invalid input gives white on the default.
+ */
+export function readableOn(hex: string): { bg: string; fg: string } {
+  return readablePair(BRAND_COLOR.test(hex) ? hex.toLowerCase() : DEFAULT_BRAND);
 }
 
 /** Field names zod rejected, for aria-invalid on the form. */

@@ -8,7 +8,7 @@ vi.mock("@/lib/db/client", () => ({
   getServiceClient: () => ({
     rpc: async (fn: string, args: Record<string, unknown>) => {
       outbox.push({ fn, args });
-      return { data: null, error: null };
+      return { data: fn === "check_rate_limit" ? true : null, error: null };
     },
   }),
 }));
@@ -31,7 +31,7 @@ vi.mock("@/lib/customer/portal", () => ({
 }));
 
 import { handleChat } from "@/lib/agent/chat-handler";
-import { DEMO_SESSION_COOKIE } from "@/lib/demo/session";
+import { CHAT_SESSION_COOKIE, DEMO_SESSION_COOKIE } from "@/lib/demo/session";
 import { hashArgs, signConfirmation } from "@/lib/agent/confirm";
 import { bookingHash } from "@/lib/agent/tools";
 import { APPT, DELIVERED_ID, timed, PROVIDER, SERVICE, TENANT, fakeDb, fullTenantRow, scriptedModel } from "./helpers";
@@ -80,7 +80,7 @@ function run(opts: { demo: boolean; token?: string | null; cookie?: string; emai
   const model = scriptedModel([{ toolCalls: [{ name: "create_booking", input: { confirmation_token: P.token } }] }, { text: "Booked." }]);
   const req = new Request("http://localhost/api/chat", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": "9.9.9.9", ...(opts.cookie ? { cookie: opts.cookie } : {}) },
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", "x-forwarded-for": "9.9.9.9", ...(opts.cookie ? { cookie: opts.cookie } : {}) },
     body: JSON.stringify({ tenantSlug: "al-noor", locale: "en", message: { type: "text", text: "yes book it" } }),
   });
   return { ...f, model, go: async () => { const res = await handleChat(req, { db: f.db, model }); const body = await res.text(); return { res, body }; } };
@@ -118,6 +118,8 @@ describe("chat booking confirmation mail", () => {
     const hash = sha(raw!);
     const attach = s.rpcCalls.find((c) => c.fn === "demo_attach_session");
     expect(attach?.args).toMatchObject({ p_tenant_id: TENANT, p_appointment_id: APPT, p_session_hash: hash });
+    // M2: the visitor session owns the rows the booking creates
+    expect(s.rpcCalls.find((c) => c.fn === "create_public_booking")?.args.p_session_hash).toBe(hash);
     const add = outbox.find((c) => c.fn === "demo_outbox_add");
     expect(add?.args).toMatchObject({ p_tenant_id: TENANT, p_session_hash: hash, p_kind: "booking", p_to: EMAIL });
     expect(JSON.stringify([outbox, s.rpcCalls])).not.toContain(raw!); // only the hash is stored
@@ -134,11 +136,14 @@ describe("chat booking confirmation mail", () => {
   });
 
 
-  it("real tenant: goes through the configured provider, no cookie, no outbox", async () => {
+  it("real tenant: goes through the configured provider, no outbox (the cookie only binds the conversation)", async () => {
     const s = run({ demo: false });
     const { res } = await s.go();
-    expect(res.headers.get("set-cookie")).toBeNull();
-    expect(outbox).toHaveLength(0);
+    // real tenants use the separate chat cookie, never the demo session
+    expect(res.headers.get("set-cookie")).toContain(CHAT_SESSION_COOKIE);
+    expect(res.headers.get("set-cookie")).not.toContain(DEMO_SESSION_COOKIE);
+    expect(outbox.filter((c) => c.fn !== "check_rate_limit")).toHaveLength(0);
+    expect(s.rpcCalls.find((c) => c.fn === "create_public_booking")?.args.p_session_hash).toBeNull(); // real tenants carry no owner
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toContain("resend.com");
   });

@@ -134,6 +134,9 @@
     "errors": {
       "rate_limited": "You sent many messages in a short time. Wait a few minutes and continue.",
       "tenant_daily_limit": "The assistant has reached its daily limit. Use the booking form or try again tomorrow.",
+      "ip_daily_limit": "You have reached today's message limit. Try again tomorrow, or book with the form now.",
+      "forbidden": "The assistant could not accept this request. Reload the page and try again.",
+      "unsupported_media_type": "The assistant could not read this request. Reload the page and try again.",
       "not_configured": "The assistant is not switched on yet. You can book with the form now.",
       "message_too_long": "That message is too long. Shorten it and send again.",
       "payload_too_large": "That message is too large.",
@@ -268,6 +271,7 @@
     },
     "menu": {
       "label": "Account menu",
+      "demoVisitor": "Demo visitor",
       "language": "العربية",
       "logout": "Sign out",
       "tenant": "Business",
@@ -327,7 +331,7 @@
     "noProviders": "There are no providers to show.",
     "emptyDay": "No appointments",
     "gridLabel": "Appointments grid",
-    "block": "{time}, {customer}, {service}, {status}",
+    "block": "{customer}, {time}, {status}, {service}",
     "detail": {
       "title": "Appointment details",
       "close": "Close",
@@ -352,7 +356,8 @@
       "saving": "Saving...",
       "statusSaved": "Status updated.",
       "moved": "Appointment moved.",
-      "readOnly": "You can view this appointment but not change it."
+      "readOnly": "You can view this appointment but not change it.",
+      "demoLocked": "This is a demo business. This change is turned off here."
     },
     "errors": {
       "slot_taken": "That time was just taken. Pick another time.",
@@ -401,7 +406,7 @@
     },
     "demoLocked": {
       "title": "Locked in the demo business",
-      "text": "This is the shared demo business. The seeded items are locked so every visitor sees the same data. Items you create yourself stay editable."
+      "text": "The catalogue of the demo business (services, providers, hours, time off) is read-only so every visitor sees the same data."
     }
   },
   "Services": {
@@ -533,7 +538,7 @@
     "metaTitle": "Settings | Dawrak",
     "title": "Settings",
     "lead": "Your business details, currency and deposit rules.",
-    "demoLocked": "These fields are locked on the demo business. You can still change the deposit settings.",
+    "demoLocked": "These fields are locked on the demo business: identity, region, logo, colour and deposit.",
     "sections": {
       "identity": "Business name",
       "region": "Region",

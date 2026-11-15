@@ -86,7 +86,7 @@ export async function LandingPage({ locale }: { locale: Loc }) {
 
       <header className="lp-topbar">
         <div className="lp-wrap lp-topbar-in">
-          <Link className="lp-brand" href="/" aria-label={t("nav.home")}>
+          <Link className="lp-brand" href="/">
             <span className="lp-mark" aria-hidden="true">
               {isAr ? "د" : "D"}
             </span>

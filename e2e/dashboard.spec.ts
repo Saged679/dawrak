@@ -7,9 +7,11 @@ import {
   SERVICE_KEY,
   SUPABASE_URL,
   clearRateLimits,
+  demoSessionHash,
   enterDemo,
   loginFixed,
   rest,
+  restShared,
 } from "./helpers/tenant";
 
 /**
@@ -40,6 +42,31 @@ async function futureConfirmed(providerId?: string, skip = 0): Promise<Appt> {
   if (!rows[0]) throw new Error("no future confirmed appointment in the seed");
   return rows[0];
 }
+
+/**
+ * A confirmed appointment that belongs to the demo visitor signed in on `page` (seeded appointments are read-only
+ * in the demo business: only a visitor's own booking can be changed). Placed on a free slot of the provider a few
+ * days ahead so a reschedule has other slots to move to. Delete it afterwards with dropAppt.
+ */
+async function ownAppt(page: Page, providerId = DOCTOR): Promise<Appt> {
+  const hash = await demoSessionHash(page);
+  const [ps] = (await rest(`provider_services?provider_id=eq.${providerId}&select=service_id&limit=1`)) as { service_id: string }[];
+  const [svc] = (await rest(`services?id=eq.${ps.service_id}&select=price`)) as { price: number }[];
+  const [cust] = (await rest(`customers?tenant_id=eq.${CLINIC}&select=id&limit=1`)) as { id: string }[];
+  const from = dayKey(new Date(Date.now() + 3 * 86_400_000).toISOString());
+  const to = dayKey(new Date(Date.now() + 10 * 86_400_000).toISOString());
+  const slots = (await rest("rpc/get_available_slots", {
+    method: "POST",
+    body: JSON.stringify({ p_tenant_id: CLINIC, p_provider_id: providerId, p_service_id: ps.service_id, p_date_from: from, p_date_to: to, p_step_min: 30 }),
+  })) as { slot_start: string; slot_end: string }[];
+  expect(slots.length).toBeGreaterThan(2);
+  const slot = slots[Math.floor(slots.length / 2)];
+  return restShared<Appt>("appointments", {
+    tenant_id: CLINIC, provider_id: providerId, service_id: ps.service_id, customer_id: cust.id,
+    starts_at: slot.slot_start, ends_at: slot.slot_end, status: "confirmed", source: "staff", price: svc.price,
+  }, hash);
+}
+const dropAppt = (a: Appt) => rest(`appointments?id=eq.${a.id}`, { method: "DELETE" });
 
 const dayKey = (iso: string) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Riyadh" }).format(new Date(iso));
@@ -167,10 +194,10 @@ test.describe("calendar actions (chromium only, restores what it changes)", () =
     test.skip(test.info().project.name !== "chromium", "mutating flows run once");
   });
 
-  test("owner changes a status and it persists in the database", async ({ page }) => {
-    const appt = await futureConfirmed();
+  test("owner changes a status of their own appointment and it persists in the database", async ({ page }) => {
+    await enter(page, "clinic-owner");
+    const appt = await ownAppt(page);
     try {
-      await enter(page, "clinic-owner");
       await page.goto(`/en/dashboard/calendar?view=day&date=${dayKey(appt.starts_at)}`);
       const block = page.locator(`[data-id="${appt.id}"]`);
       await expect(block).toHaveAttribute("data-status", "confirmed");
@@ -181,8 +208,19 @@ test.describe("calendar actions (chromium only, restores what it changes)", () =
       await expect.poll(async () => ((await rest(`appointments?id=eq.${appt.id}&select=status`)) as { status: string }[])[0].status).toBe("completed");
       await expect(page.getByTestId("appt-dialog").getByText("Completed").first()).toBeVisible();
     } finally {
-      await rest(`appointments?id=eq.${appt.id}`, { method: "PATCH", body: JSON.stringify({ status: "confirmed" }) });
+      await dropAppt(appt);
     }
+  });
+
+  test("a seeded appointment is read-only in the demo: actions are disabled with a message and nothing changes", async ({ page }) => {
+    const seeded = await futureConfirmed();
+    await enter(page, "clinic-owner");
+    await page.goto(`/en/dashboard/calendar?view=day&date=${dayKey(seeded.starts_at)}`);
+    await page.locator(`[data-id="${seeded.id}"]`).click();
+    await expect(page.getByTestId("dialog-demo-locked")).toContainText("demo business");
+    await expect(page.getByTestId("set-completed")).toBeDisabled();
+    await expect(page.getByTestId("mv-open")).toBeDisabled();
+    expect(((await rest(`appointments?id=eq.${seeded.id}&select=status`)) as { status: string }[])[0].status).toBe("confirmed");
   });
 
   test("calendar is keyboard operable and the dialog traps focus and closes with Escape", async ({ page }) => {
@@ -199,11 +237,10 @@ test.describe("calendar actions (chromium only, restores what it changes)", () =
   });
 
   test("receptionist reschedules and a conflicting slot shows the friendly message", async ({ page }) => {
-    const a = await futureConfirmed(DOCTOR);
-    const original = { starts_at: a.starts_at, ends_at: a.ends_at, provider_id: a.provider_id };
+    await enter(page, "clinic-reception");
+    const a = await ownAppt(page, DOCTOR);
     let inserted: string | null = null;
     try {
-      await enter(page, "clinic-reception");
       await page.goto(`/en/dashboard/calendar?view=day&date=${dayKey(a.starts_at)}`);
       await page.locator(`[data-id="${a.id}"]`).click();
       await page.getByTestId("mv-open").click();
@@ -215,7 +252,7 @@ test.describe("calendar actions (chromium only, restores what it changes)", () =
       await page.getByTestId("mv-confirm").click();
       await expect(page.getByTestId("dialog-msg")).toHaveText("Appointment moved.");
       const moved = ((await rest(`appointments?id=eq.${a.id}&select=starts_at,provider_id`)) as { starts_at: string; provider_id: string }[])[0];
-      expect(new Date(moved.starts_at).getTime()).not.toBe(new Date(original.starts_at).getTime());
+      expect(new Date(moved.starts_at).getTime()).not.toBe(new Date(a.starts_at).getTime());
 
       // 2. conflict: pick a slot in the UI, then take it behind the UI's back
       await page.getByTestId("mv-open").click();
@@ -255,11 +292,11 @@ test.describe("calendar actions (chromium only, restores what it changes)", () =
       await expect(page.getByTestId("dialog-msg")).toHaveText("That time was just taken. Pick another time.");
     } finally {
       if (inserted) await rest(`appointments?id=eq.${inserted}`, { method: "DELETE" });
-      await rest(`appointments?id=eq.${a.id}`, { method: "PATCH", body: JSON.stringify(original) });
+      await dropAppt(a);
     }
   });
 
-  test("doctor can only mark own appointments completed / no-show", async ({ page }) => {
+  test("doctor sees only the doctor actions, and on the demo clinic they are read-only", async ({ page }) => {
     const appt = await futureConfirmed(DOCTOR);
     try {
       await enter(page, "clinic-doctor");
@@ -268,9 +305,11 @@ test.describe("calendar actions (chromium only, restores what it changes)", () =
       await expect(page.getByTestId("set-cancelled")).toHaveCount(0);
       await expect(page.getByTestId("set-confirmed")).toHaveCount(0);
       await expect(page.getByTestId("mv-open")).toHaveCount(0);
-      await page.getByTestId("set-no_show").click();
-      await expect(page.getByTestId("dialog-msg")).toHaveText("Status updated.");
-      await expect.poll(async () => ((await rest(`appointments?id=eq.${appt.id}&select=status`)) as { status: string }[])[0].status).toBe("no_show");
+      // the fixed doctor is not a demo visitor: seeded demo rows are read-only for them too
+      await expect(page.getByTestId("set-no_show")).toBeDisabled();
+      await expect(page.getByTestId("set-completed")).toBeDisabled();
+      await expect(page.getByTestId("dialog-demo-locked")).toBeVisible();
+      expect(((await rest(`appointments?id=eq.${appt.id}&select=status`)) as { status: string }[])[0].status).toBe("confirmed");
     } finally {
       await rest(`appointments?id=eq.${appt.id}`, { method: "PATCH", body: JSON.stringify({ status: "confirmed" }) });
     }

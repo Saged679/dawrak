@@ -4,6 +4,7 @@ import {
   DOCTOR,
   OTHER_DOCTOR,
   SERVICE_KEY,
+  ANON_KEY,
   SUPABASE_URL,
   createTempTenant,
   clearRateLimits,
@@ -11,6 +12,9 @@ import {
   loginFixed,
   loginWith,
   rest,
+  restShared,
+  tokensForVisitor,
+  visitorEmail,
   type TempTenant,
 } from "./helpers/tenant";
 
@@ -240,37 +244,34 @@ test.describe("settings (owner only)", () => {
     test.skip(test.info().project.name !== "chromium", "mutating flows run once");
   });
 
-  test("demo business: identity, region and brand are locked, the deposit still saves", async ({ page }) => {
-    const before = ((await rest(`tenants?id=eq.${CLINIC}&select=name_ar,name_en,timezone,currency,logo_url,brand_color,deposit_enabled,deposit_type,deposit_value`)) as Record<string, unknown>[])[0];
-    try {
-      await enter(page, "clinic-owner");
-      await link(page, "Settings").click();
-      await expect(page.getByTestId("settings-form")).toBeVisible();
-      await expect(page.getByTestId("settings-demo-locked")).toBeVisible();
-      await hydrated(page);
-      for (const label of ["Name (Arabic)", "Name (English)", "Time zone", "Currency", "Logo address"]) {
-        await expect(page.getByLabel(label, { exact: true }), label).toBeDisabled();
-      }
-      await expect(page.getByLabel("Brand colour", { exact: true })).toBeDisabled();
-      await expect(page.getByLabel("Pick a brand colour")).toBeDisabled();
-      // the deposit stays editable and is saved
-      const enable = page.getByLabel("Ask for a deposit when a client books");
-      await expect(enable).toBeEnabled();
-      await enable.check();
-      await page.getByLabel("Deposit type").selectOption("percent");
-      await page.getByLabel("Deposit (% of the price)").fill("15");
-      await page.getByTestId("settings-save").click();
-      await expect(page.getByTestId("form-msg")).toHaveText("Saved.");
-      const after = ((await rest(`tenants?id=eq.${CLINIC}&select=name_ar,name_en,timezone,currency,logo_url,brand_color,deposit_enabled,deposit_type,deposit_value`)) as Record<string, unknown>[])[0];
-      expect(after).toMatchObject({ deposit_enabled: true, deposit_type: "percent" });
-      expect(Number(after.deposit_value)).toBe(15);
-      expect({ ...after, deposit_enabled: before.deposit_enabled, deposit_type: before.deposit_type, deposit_value: before.deposit_value }).toEqual(before);
-    } finally {
-      await rest(`tenants?id=eq.${CLINIC}`, {
-        method: "PATCH",
-        body: JSON.stringify({ deposit_enabled: before.deposit_enabled, deposit_type: before.deposit_type, deposit_value: before.deposit_value }),
-      });
+  test("demo business: identity, region, brand and deposit are locked in the form and in the database", async ({ page }) => {
+    const cols = "name_ar,name_en,timezone,currency,logo_url,brand_color,deposit_enabled,deposit_type,deposit_value";
+    const before = ((await rest(`tenants?id=eq.${CLINIC}&select=${cols}`)) as Record<string, unknown>[])[0];
+    expect(before.deposit_enabled, "the demo clinic has no deposit").toBe(false);
+    await enter(page, "clinic-owner");
+    await link(page, "Settings").click();
+    await expect(page.getByTestId("settings-form")).toBeVisible();
+    await expect(page.getByTestId("settings-demo-locked")).toBeVisible();
+    await expect(page.getByTestId("settings-demo-locked")).toContainText("deposit");
+    await hydrated(page);
+    for (const label of ["Name (Arabic)", "Name (English)", "Time zone", "Currency", "Logo address", "Deposit type"]) {
+      await expect(page.getByLabel(label, { exact: true }), label).toBeDisabled();
     }
+    await expect(page.getByLabel("Brand colour", { exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Pick a brand colour")).toBeDisabled();
+    await expect(page.getByLabel("Ask for a deposit when a client books")).toBeDisabled();
+    await expect(page.getByRole("spinbutton")).toBeDisabled();
+
+    // the database refuses it too: the visitor's own token cannot change the deposit through the API
+    const t = await tokensForVisitor(await visitorEmail(page));
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/tenants?id=eq.${CLINIC}`, {
+      method: "PATCH",
+      headers: { apikey: ANON_KEY!, Authorization: `Bearer ${t.access}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({ deposit_enabled: true, deposit_type: "percent", deposit_value: 15 }),
+    });
+    const body = await res.text();
+    expect(res.ok && body !== "[]", `PATCH must not change anything, got ${res.status} ${body.slice(0, 120)}`).toBe(false);
+    expect(((await rest(`tenants?id=eq.${CLINIC}&select=${cols}`)) as Record<string, unknown>[])[0]).toEqual(before);
   });
 
   test.describe("a non-demo business owner can still edit everything", () => {
@@ -354,14 +355,9 @@ test.describe("role gates by URL", () => {
       const [svc] = (await rest(`services?tenant_id=eq.${CLINIC}&select=id,duration_min,price&limit=1`)) as { id: string; duration_min: number; price: number }[];
       const hour = project() === "chromium" ? "08" : "10";
       patientName = `E2E Other Patient ${project()}`;
-      const [c] = (await rest("customers", {
-        method: "POST",
-        body: JSON.stringify({ tenant_id: CLINIC, full_name: patientName, phone: `+9665${Math.floor(Math.random() * 1e8).toString().padStart(8, "0")}`, email: "e2e-other@example.com" }),
-      })) as { id: string }[];
+      const c = await restShared<{ id: string }>("customers", { tenant_id: CLINIC, full_name: patientName, phone: `+9665${Math.floor(Math.random() * 1e8).toString().padStart(8, "0")}`, email: "e2e-other@example.com" });
       customerId = c.id;
-      const [a] = (await rest("appointments", {
-        method: "POST",
-        body: JSON.stringify({
+      const a = await restShared<{ id: string }>("appointments", {
           tenant_id: CLINIC,
           provider_id: OTHER_DOCTOR,
           service_id: svc.id,
@@ -371,8 +367,7 @@ test.describe("role gates by URL", () => {
           status: "completed",
           source: "staff",
           price: svc.price,
-        }),
-      })) as { id: string }[];
+        });
       appointmentId = a.id;
       // a customer who does have an appointment with DOCTOR
       const own = (await rest(`appointments?tenant_id=eq.${CLINIC}&provider_id=eq.${DOCTOR}&select=customer_id&limit=1`)) as { customer_id: string }[];

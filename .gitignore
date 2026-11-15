@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Private portfolio notes (not for the public repo)
 /docs/MOSTAQEL.md
+
+# e2e build output
+.next-*/

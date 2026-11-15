@@ -83,6 +83,7 @@ export function AppointmentDialog({ item, open, onClose, onClosed, onStatusChang
 
   const pick = (n: { name_ar: string; name_en: string | null }) =>
     locale === "en" ? n.name_en || n.name_ar : n.name_ar;
+  const locked = item.locked;
   const targets = allowedStatusTargets(role, item.status);
   const mayMove = canReschedule(role) && item.status !== "cancelled" && item.status !== "no_show";
 
@@ -213,6 +214,12 @@ export function AppointmentDialog({ item, open, onClose, onClosed, onStatusChang
             </p>
           ) : null}
 
+          {locked && (targets.length > 0 || mayMove) ? (
+            <p role="note" data-testid="dialog-demo-locked" className="text-sm text-muted-foreground">
+              {td("demoLocked")}
+            </p>
+          ) : null}
+
           {targets.length === 0 && !mayMove ? (
             <p className="text-sm text-muted-foreground">{td("readOnly")}</p>
           ) : null}
@@ -227,7 +234,8 @@ export function AppointmentDialog({ item, open, onClose, onClosed, onStatusChang
                   <button
                     key={s}
                     type="button"
-                    disabled={pending}
+                    disabled={pending || locked}
+                    title={locked ? td("demoLocked") : undefined}
                     data-testid={`set-${s}`}
                     onClick={() => changeStatus(s)}
                     className={`${btn} border-line bg-paper hover:bg-mist`}
@@ -336,7 +344,8 @@ export function AppointmentDialog({ item, open, onClose, onClosed, onStatusChang
             ) : (
               <button
                 type="button"
-                disabled={pending}
+                disabled={pending || locked}
+                title={locked ? td("demoLocked") : undefined}
                 data-testid="mv-open"
                 onClick={startMove}
                 className={`${btn} w-fit border-cobalt text-cobalt-deep hover:bg-sky`}

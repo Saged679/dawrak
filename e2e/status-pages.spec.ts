@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { SITE } from "./helpers/site";
 
 /** Localized 404/error pages, noindex on utility pages, and the landing hero flash. No database needed. */
 
@@ -21,6 +22,24 @@ for (const locale of ["ar", "en"] as const) {
     });
   });
 }
+
+test.describe("404 without JavaScript: the server HTML itself carries the page", () => {
+  for (const [path, locale] of [["/ar/no/such/page", "ar"], ["/en/nope", "en"], ["/en/login/extra", "en"]] as const) {
+    test(`${path}`, async ({ browser }) => {
+      const ctx = await browser.newContext({ javaScriptEnabled: false });
+      const page = await ctx.newPage();
+      const res = await page.goto(path);
+      expect(res?.status()).toBe(404);
+      const html = (await res!.text()).toString();
+      expect(html).toContain(`<html lang="${locale}" dir="${COPY[locale].dir}"`);
+      expect(html).not.toContain("__next_error__");
+      await expect(page.locator("h1")).toHaveText(COPY[locale].title);
+      await expect(page.getByRole("link", { name: COPY[locale].home })).toHaveAttribute("href", `/${locale}`);
+      expect(html.match(/name="robots"/g)?.length).toBe(1);
+      await ctx.close();
+    });
+  }
+});
 
 test("a bare unknown path is redirected into a locale and then 404s localized", async ({ page }) => {
   const res = await page.goto("/totally-unknown");
@@ -86,7 +105,7 @@ test.describe("landing hero: no flash of the final state", () => {
   test("no JS: final state in the server HTML", async ({ browser }) => {
     const ctx = await browser.newContext({ javaScriptEnabled: false, reducedMotion: "no-preference" });
     const page = await ctx.newPage();
-    await page.goto("http://localhost:3000/en");
+    await page.goto(`${SITE}/en`);
     await expect(page.getByTestId("ticket")).toBeVisible();
     await expect(page.getByTestId("cal-new")).toBeVisible();
     await ctx.close();

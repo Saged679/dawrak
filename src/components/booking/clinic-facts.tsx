@@ -47,7 +47,12 @@ export function ClinicFactsView({ facts, l }: { facts: ClinicFactsData; l: Clini
               {facts.services.map((s, i) => (
                 <li key={i}>
                   {s.name}: {s.duration}, {s.price}
-                  {s.description ? `. ${s.description}` : ""}
+                  {s.description ? (
+                    <>
+                      {s.price.endsWith(".") ? " " : ". "}
+                      <bdi>{s.description}</bdi>
+                    </>
+                  ) : null}
                 </li>
               ))}
             </ul>

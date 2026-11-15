@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { CLINIC, SALON, SERVICE_KEY, SUPABASE_URL, createTempTenant, enterDemo, loginFixed, loginWith, rest, type TempTenant } from "./helpers/tenant";
+import { CLINIC, SALON, SERVICE_KEY, SUPABASE_URL, createTempTenant, enterDemo, loginFixed, loginWith, rest, restShared, type TempTenant } from "./helpers/tenant";
 
 /**
  * Knowledge base and conversations pages against the LOCAL Supabase stack. The knowledge-base management
@@ -209,9 +209,7 @@ test("a thread links to the appointment the assistant booked", async ({ page }) 
   }[];
   const start = new Date(Date.now() + 40 * 86_400_000);
   start.setUTCHours(9, 0, 0, 0);
-  const [appt] = (await rest("appointments", {
-    method: "POST",
-    body: JSON.stringify({
+  const appt = await restShared<{ id: string }>("appointments", {
       tenant_id: CLINIC,
       provider_id: svc.provider_services[0].provider_id,
       service_id: svc.id,
@@ -221,8 +219,7 @@ test("a thread links to the appointment the assistant booked", async ({ page }) 
       status: "confirmed",
       source: "chat",
       created_at: c.last_message_at,
-    }),
-  })) as { id: string }[];
+    });
   try {
     await enter(page, "clinic-owner");
     await page.goto(`/en/dashboard/conversations/${conv}`);

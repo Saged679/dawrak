@@ -244,7 +244,6 @@ function BookingFlowInner({
               className={cn(
                 "min-w-0 rounded-xl border p-3 sm:p-4",
                 current ? "border-cobalt bg-mist/60" : "border-line",
-                !current && !done && "opacity-60",
               )}
             >
               <div className="flex items-center justify-between gap-3">
@@ -259,7 +258,7 @@ function BookingFlowInner({
                     {done ? <CheckCircle2 className={cn("size-4", moved && "m-pop")} /> : formatNumber(i + 1, loc)}
                   </span>
                   <div className="min-w-0">
-                    <h3 className="font-heading text-base font-medium text-ink">
+                    <h3 className={cn("font-heading text-base font-medium", current || done ? "text-ink" : "text-muted-foreground")}>
                       <span className="sr-only">
                         {t("stepLabel", { n: formatNumber(i + 1, loc), total: formatNumber(STEPS.length, loc) })}
                         {": "}
@@ -316,9 +315,12 @@ function BookingFlowInner({
                               <span className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
                                 <Clock className="size-3.5" aria-hidden />
                                 {t("minutes", { n: formatNumber(s.duration_min, loc) })}
-                                {pick(loc, s.description_ar, s.description_en)
-                                  ? ` - ${pick(loc, s.description_ar, s.description_en)}`
-                                  : ""}
+                                {pick(loc, s.description_ar, s.description_en) ? (
+                                  <>
+                                    <span aria-hidden>-</span>
+                                    <bdi>{pick(loc, s.description_ar, s.description_en)}</bdi>
+                                  </>
+                                ) : null}
                               </span>
                             </span>
                           </label>

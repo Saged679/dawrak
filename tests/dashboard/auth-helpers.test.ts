@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { pathInfo } from "@/lib/auth/paths";
+import { readdirSync, statSync } from "node:fs";
+import { isKnownLocalePath, LOCALE_ROUTES, pathInfo } from "@/lib/auth/paths";
 import {
   allowedStatusTargets,
   canReschedule,
@@ -133,5 +134,39 @@ describe("mapStaffError", () => {
     expect(mapStaffError({ message: "invalid_status" })).toBe("invalid");
     expect(mapStaffError({ message: "boom" })).toBe("generic");
     expect(mapStaffError(null)).toBe("generic");
+  });
+});
+
+describe("isKnownLocalePath (proxy 404 rewrite)", () => {
+  it("knows every route directory under src/app/[locale] and nothing else", () => {
+    const dir = "src/app/[locale]";
+    const routes = readdirSync(dir)
+      .filter((n) => statSync(`${dir}/${n}`).isDirectory() || n === "opengraph-image.tsx")
+      .map((n) => n.replace(/.tsx$/, ""))
+      .filter((n) => !["[...rest]", "page-not-found"].includes(n));
+    expect(routes.sort()).toEqual(Object.keys(LOCALE_ROUTES).sort());
+  });
+  it("accepts real paths", () => {
+    for (const p of ["/", "/login", "/demo", "/demo/mailbox", "/c/demo-clinic", "/c/x/my/tok", "/dashboard/calendar", "/opengraph-image"]) {
+      expect(isKnownLocalePath(p), p).toBe(true);
+    }
+  });
+  it("rejects unknown paths", () => {
+    for (const p of ["/nope", "/no/such/page", "/login/x", "/demo/other", "/page-not-found", "/dashboardx", "/cc"]) {
+      expect(isKnownLocalePath(p), p).toBe(false);
+    }
+  });
+});
+
+describe("isKnownLocalePath ignores inherited object keys (L-new1)", () => {
+  it.each(["__proto__", "constructor", "toString", "hasOwnProperty", "valueOf"])("/%s is unknown and never throws", (k) => {
+    expect(isKnownLocalePath(`/${k}`)).toBe(false);
+    expect(isKnownLocalePath(`/${k}/x`)).toBe(false);
+    expect(() => pathInfo(`/ar/${k}/a`)).not.toThrow();
+  });
+  it("a real section with an inherited second segment is still unknown", () => {
+    for (const [k, rule] of Object.entries(LOCALE_ROUTES)) {
+      if (Array.isArray(rule)) expect(isKnownLocalePath(`/${k}/__proto__`)).toBe(false);
+    }
   });
 });

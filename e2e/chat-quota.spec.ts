@@ -1,3 +1,4 @@
+import { ownIpHeaders } from "./helpers/site";
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
@@ -31,7 +32,7 @@ test.describe("chat widget: assistant quota and Markdown", () => {
   });
 
   async function openChat(page: import("@playwright/test").Page, locale: "en" | "ar") {
-    await page.setExtraHTTPHeaders({ "x-dawrak-e2e-model": "1" });
+    await page.setExtraHTTPHeaders(ownIpHeaders({ "x-dawrak-e2e-model": "1" }));
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/${locale}/c/demo-clinic`, { waitUntil: "networkidle" });
     return page.getByTestId("chat-widget");

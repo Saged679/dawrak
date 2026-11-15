@@ -36,6 +36,8 @@ export class ChannelError extends Error {
  */
 export interface ChannelAdapter<TRaw, TOut> {
   readonly channel: InboundMessage["channel"];
+  /** Cheap request checks that must run BEFORE any rate limit is counted (same-site, content type). Throws ChannelError. */
+  precheck?(raw: TRaw): void;
   parseInbound(raw: TRaw): Promise<InboundMessage>;
   respond(result: AgentStream, ctx: { conversationId: string }): TOut | Promise<TOut>;
 }

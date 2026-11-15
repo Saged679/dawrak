@@ -2,6 +2,7 @@ import { z } from "zod";
 import { AssistantQuotaError } from "@/lib/agent/models";
 import { VOICE, base64Length } from "@/lib/audio/limits";
 import { normalizeAudioType, validateAudio } from "./audio";
+import { isSameSiteRequest } from "@/lib/security/same-site";
 import { ChannelError, type ChannelAdapter, type InboundMessage } from "./types";
 
 export const WEB_LIMITS = {
@@ -53,7 +54,16 @@ async function readLimited(req: Request, max: number): Promise<string> {
 export const webChannel: ChannelAdapter<Request, Response> = {
   channel: "web",
 
+  precheck(req) {
+    // L2: browser fetches from our own site only, and only JSON (a cross-site form post cannot send either).
+    if (!isSameSiteRequest(req)) throw new ChannelError("forbidden", "Cross-site requests are not allowed.", 403);
+    if (!/^application\/json\s*(;|$)/i.test(req.headers.get("content-type") ?? "")) {
+      throw new ChannelError("unsupported_media_type", "Content-Type must be application/json.", 415);
+    }
+  },
+
   async parseInbound(req) {
+    webChannel.precheck?.(req);
     const declared = Number(req.headers.get("content-length") ?? 0);
     if (declared > WEB_LIMITS.maxBodyBytes) {
       throw new ChannelError("payload_too_large", "Message is too large.", 413);

@@ -1,3 +1,4 @@
+import { ownIpHeaders } from "./helpers/site";
 import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
@@ -58,7 +59,7 @@ test.describe("chat booking -> demo mailbox", () => {
 
   /** Books through the chat widget; returns what the model was shown plus the DB rows. */
   async function bookInChat(page: Page, slug: "demo-clinic" | "demo-salon") {
-    await page.setExtraHTTPHeaders({ "x-dawrak-e2e-model": "1" });
+    await page.setExtraHTTPHeaders(ownIpHeaders({ "x-dawrak-e2e-model": "1" }));
     const [tenant] = await rest(`tenants?slug=eq.${slug}&select=id`);
     const [service] = await rest(`services?tenant_id=eq.${tenant.id}&select=id&limit=1`);
     const from = new Date(Date.now() + 6 * 86_400_000).toISOString().slice(0, 10);
@@ -118,12 +119,12 @@ test.describe("chat booking -> demo mailbox", () => {
     return { other, op };
   }
 
-  test("demo clinic (deposit): the chat booking's confirmation is in this visitor's mailbox only", async ({ page, browser }) => {
+  test("demo clinic (no deposit): the chat booking's confirmation is in this visitor's mailbox only", async ({ page, browser }) => {
     const { email, appt, text } = await bookInChat(page, "demo-clinic");
-    expect(appt.status).toBe("pending_payment");
-    expect(text).toContain("pay_url");
-    // a held booking has no reminders yet (they start when the deposit is paid)
-    expect(await rest(`reminders?appointment_id=eq.${appt.id}&select=kind`)).toEqual([]);
+    expect(appt.status).toBe("confirmed"); // the demo clinic takes no deposit
+    expect(text).not.toContain("pay_url");
+    const reminders = (await rest(`reminders?appointment_id=eq.${appt.id}&select=kind&order=kind`)) as { kind: string }[];
+    expect(reminders.map((r) => r.kind)).toEqual(["24h", "2h"]);
 
     await page.goto("/en/demo/mailbox");
     await expect(page.getByTestId("mailbox-message")).toHaveCount(1);

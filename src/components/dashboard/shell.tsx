@@ -64,7 +64,7 @@ export async function DashboardShell({
                     {tenantName}
                   </span>
                 </p>
-                <p className="truncate text-xs text-white/80">
+                <p className="truncate text-xs text-white">
                   {t(`kind.${session.tenant.kind}`)} · {t(`roles.${session.role}`)}
                   {session.tenant.is_demo ? ` · ${t("demoBadge")}` : ""}
                 </p>

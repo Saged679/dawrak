@@ -23,6 +23,7 @@ describe("createDemoVisitor (H1)", () => {
       admin: f.admin,
       signInWithPassword: async (email, password) => ((used = { email, password }), { error: null }),
       signOutLocal: noop,
+      sessionHash: "a".repeat(64),
     });
     expect(res).toEqual({ ok: true, userId: UID });
     const arg = f.createUser.mock.calls[0][0] as Record<string, unknown>;
@@ -30,7 +31,12 @@ describe("createDemoVisitor (H1)", () => {
     expect(String(arg.email)).toMatch(/^v-[0-9a-f]{24}@demo\.dawrak\.invalid$/);
     expect(String(arg.password).length).toBeGreaterThanOrEqual(43); // 32 random bytes, base64url
     expect(used).toEqual({ email: arg.email, password: arg.password });
-    expect(f.rpc).toHaveBeenCalledWith("register_demo_user", { p_user_id: UID, p_tenant_id: DEMO_CLINIC_ID, p_role: "receptionist" });
+    expect(f.rpc).toHaveBeenCalledWith("register_demo_user", {
+      p_user_id: UID,
+      p_tenant_id: DEMO_CLINIC_ID,
+      p_role: "receptionist",
+      p_session_hash: "a".repeat(64),
+    });
     expect(f.deleteUser).not.toHaveBeenCalled();
   });
 

@@ -110,15 +110,21 @@ export async function submitBooking(
     if (!(await rateLimitOk(phoneBookingKey(tenant.id, parsed.data.phone), PHONE_BOOKING_LIMIT.max, PHONE_BOOKING_LIMIT.window))) {
       return { status: "error", code: "phone_limit" };
     }
-    const result = await createBooking(tenant.id, parsed.data);
-    if (!result.ok) return { status: "error", code: result.code };
-    success = { status: "success", booking: result.booking };
-
-    // Demo tenant: the visitor's reminders and mails go to their own demo mailbox (cookie session).
+    // Demo tenant: the visitor's cookie session owns the new rows (per-visitor isolation) and their mailbox.
     let sessionHash: string | null = null;
     if (tenant.is_demo) {
       try {
         sessionHash = await ensureDemoSessionHash();
+      } catch (e) {
+        console.error("demo_session_error", e instanceof Error ? e.message : "unknown");
+      }
+    }
+    const result = await createBooking(tenant.id, parsed.data, sessionHash);
+    if (!result.ok) return { status: "error", code: result.code };
+    success = { status: "success", booking: result.booking };
+
+    if (tenant.is_demo && sessionHash) {
+      try {
         await attachDemoSession(tenant.id, result.booking.appointmentId, sessionHash);
       } catch (e) {
         console.error("demo_session_error", e instanceof Error ? e.message : "unknown");

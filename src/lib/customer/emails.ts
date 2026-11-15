@@ -1,6 +1,8 @@
 import "server-only";
 import type { Loc } from "@/components/booking/dates";
+import { createHash } from "node:crypto";
 import { getServiceClient } from "@/lib/db/client";
+import { rateLimitOk } from "@/lib/db/public";
 import type { PublicTenant } from "@/lib/db/public";
 import { mailProviderFor } from "@/lib/mail";
 import { MailError, type MailProvider } from "@/lib/mail/types";
@@ -9,6 +11,25 @@ import { renderEmail } from "@/lib/mail/templates";
 import { loadPortal } from "./portal";
 
 const NO_EMAIL = "no-email-on-file@demo.invalid";
+
+/** L6: booking mails per recipient address and day (a third party cannot be mail-bombed through the booking form). */
+export const BOOKING_MAIL_LIMIT = { max: 3, window: "1 day" } as const;
+/**
+ * One mailbox, one key: lower-case, "+tag" stripped on every domain, and for Gmail / Googlemail the dots in the local
+ * part ignored (they all deliver to the same inbox, so they must share one cap).
+ */
+export function normalizeRecipient(email: string): string {
+  const e = email.trim().toLowerCase();
+  const at = e.lastIndexOf("@");
+  if (at <= 0) return e;
+  let local = e.slice(0, at).split("+")[0];
+  let domain = e.slice(at + 1);
+  if (domain === "googlemail.com") domain = "gmail.com";
+  if (domain === "gmail.com") local = local.replaceAll(".", "");
+  return `${local}@${domain}`;
+}
+export const bookingMailKey = (email: string) =>
+  `mail:${createHash("sha256").update(normalizeRecipient(email)).digest("hex").slice(0, 32)}:booking`;
 const pick = (loc: Loc, ar: string | null, en: string | null) => (loc === "en" ? en || ar || "" : ar || en || "");
 
 /**
@@ -38,7 +59,14 @@ export async function sendBookingEmail(a: {
     manageUrl: manageUrl(a.locale, a.tenant.slug, a.token),
     awaitingDeposit: appt.status === "pending_payment",
   });
-  await mailProviderFor(a.tenant).send({
+  // L6/L7: count the recipient only now that a mail is really about to go out (nothing to send = nothing counted).
+  // Demo mail goes to the database outbox (own caps per visitor); everything else leaves the system, so cap it.
+  const provider = mailProviderFor(a.tenant);
+  if (!a.tenant.is_demo && !(await rateLimitOk(bookingMailKey(a.email), BOOKING_MAIL_LIMIT.max, BOOKING_MAIL_LIMIT.window))) {
+    console.warn("booking_email_recipient_limit");
+    return;
+  }
+  await provider.send({
     to: a.email,
     subject: mail.subject,
     text: mail.text,

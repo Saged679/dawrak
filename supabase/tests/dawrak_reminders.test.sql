@@ -124,13 +124,13 @@ select is((select status from public.reminders where appointment_id = 'b5555555-
 -- make a2's 2h reminder due now
 update public.reminders set send_at = now() - interval '1 minute' where appointment_id = 'b5555555-0000-4000-8000-0000000000a2' and kind = '2h';
 select pg_temp.act_service();
-select is((select count(*)::int from public.claim_due_reminders(10) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 1, 'claim returns the due reminder once');
-select is((select count(*)::int from public.claim_due_reminders(10) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 0, 'a second claim returns nothing (already sending)');
+select is((select count(*)::int from public.claim_due_reminders(1000) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 1, 'claim returns the due reminder once');
+select is((select count(*)::int from public.claim_due_reminders(1000) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 0, 'a second claim returns nothing (already sending)');
 reset role;
 select is((select status || ':' || attempts from public.reminders where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 'sending:1', 'claimed row is sending with attempts = 1');
 select pg_temp.act_service();
 select is(public.complete_reminder((select id from public.reminders where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 'retry', 'http_500', now() - interval '1 second'), 'pending', 'retry puts it back to pending with retry_at');
-select is((select count(*)::int from public.claim_due_reminders(10) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 1, 'the retry is claimed again once retry_at passed');
+select is((select count(*)::int from public.claim_due_reminders(1000) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 1, 'the retry is claimed again once retry_at passed');
 select is(public.complete_reminder((select id from public.reminders where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 'sent'), 'sent', 'complete sent');
 select is(public.complete_reminder((select id from public.reminders where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 'sent'), 'not_sending', 'completing twice is a no-op');
 reset role;
@@ -139,7 +139,7 @@ select is((select attempts from public.reminders where appointment_id = 'b555555
 -- a reminder whose appointment got cancelled meanwhile is not completed over the cancellation
 update public.reminders set status = 'pending', send_at = now() - interval '1 minute', attempts = 0 where appointment_id = 'b5555555-0000-4000-8000-0000000000a2';
 select pg_temp.act_service();
-select is((select count(*)::int from public.claim_due_reminders(10) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 1, 'claimed again');
+select is((select count(*)::int from public.claim_due_reminders(1000) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 1, 'claimed again');
 reset role;
 update public.appointments set status = 'cancelled' where id = 'b5555555-0000-4000-8000-0000000000a2';
 select pg_temp.act_service();
@@ -151,14 +151,14 @@ select is((select status from public.reminders where appointment_id = 'b5555555-
 update public.appointments set status = 'confirmed' where id = 'b5555555-0000-4000-8000-0000000000a2';
 update public.reminders set status = 'sending', claimed_at = now() - interval '11 minutes', send_at = now() - interval '1 hour' where appointment_id = 'b5555555-0000-4000-8000-0000000000a2';
 select pg_temp.act_service();
-select is((select count(*)::int from public.claim_due_reminders(10) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 1, 'stale sending row is reclaimed');
+select is((select count(*)::int from public.claim_due_reminders(1000) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 1, 'stale sending row is reclaimed');
 reset role;
 
 -- not applicable (appointment already started) is skipped, never claimed
 update public.appointments set starts_at = now() - interval '10 minutes', ends_at = now() + interval '20 minutes' where id = 'b5555555-0000-4000-8000-0000000000a2';
 update public.reminders set status = 'pending', send_at = now() - interval '2 hours', claimed_at = null where appointment_id = 'b5555555-0000-4000-8000-0000000000a2';
 select pg_temp.act_service();
-select is((select count(*)::int from public.claim_due_reminders(10) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 0, 'a reminder for an appointment that already began is not claimed');
+select is((select count(*)::int from public.claim_due_reminders(1000) where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 0, 'a reminder for an appointment that already began is not claimed');
 reset role;
 select is((select status from public.reminders where appointment_id = 'b5555555-0000-4000-8000-0000000000a2'), 'skipped', '... it is skipped');
 

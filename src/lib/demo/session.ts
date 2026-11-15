@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 
 /**
@@ -9,7 +9,8 @@ import { cookies } from "next/headers";
  */
 export const DEMO_SESSION_COOKIE = "dawrak_demo_session";
 const SHAPE = /^[A-Za-z0-9_-]{43}$/;
-export const DEMO_SESSION_MAX_AGE = 60 * 60 * 24;
+/** Same lifetime as a demo visitor (6 h): the rows a session owns are purged after that. */
+export const DEMO_SESSION_MAX_AGE = 60 * 60 * 6;
 
 export const hashDemoSession = (raw: string) => createHash("sha256").update(raw).digest("hex");
 export const isDemoSessionValue = (v: string | undefined | null): v is string => !!v && SHAPE.test(v);
@@ -19,6 +20,36 @@ const secureCookie = () => (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("
 /** Set-Cookie header value for a route handler that answers with a plain Response (the chat route). */
 export function demoSessionSetCookie(raw: string): string {
   return `${DEMO_SESSION_COOKIE}=${raw}; Path=/; Max-Age=${DEMO_SESSION_MAX_AGE}; HttpOnly; SameSite=Lax${secureCookie() ? "; Secure" : ""}`;
+}
+
+/**
+ * Chat owner cookie for REAL tenants. Deliberately a different cookie from the demo session: the demo session belongs
+ * to the demo (6 h, rows purged by its hash), this one only binds a web conversation to its browser (30 days). The value
+ * stored for a conversation is hash(raw, tenant), so the same browser has an unrelated owner value at every business and
+ * nobody can link a visitor across clinics from the database.
+ */
+export const CHAT_SESSION_COOKIE = "dawrak_chat_session";
+export const CHAT_SESSION_MAX_AGE = 60 * 60 * 24 * 30;
+
+export const chatOwnerHash = (raw: string, tenantId: string) => createHmac("sha256", raw).update(`chat:${tenantId}`).digest("hex");
+
+export function chatSessionSetCookie(raw: string): string {
+  return `${CHAT_SESSION_COOKIE}=${raw}; Path=/; Max-Age=${CHAT_SESSION_MAX_AGE}; HttpOnly; SameSite=Lax${secureCookie() ? "; Secure" : ""}`;
+}
+
+export function readChatSessionFromHeader(cookieHeader: string | null): string | null {
+  return readCookieValue(cookieHeader, CHAT_SESSION_COOKIE);
+}
+
+function readCookieValue(cookieHeader: string | null, name: string): string | null {
+  for (const part of (cookieHeader ?? "").split(";")) {
+    const i = part.indexOf("=");
+    if (i > 0 && part.slice(0, i).trim() === name) {
+      const v = part.slice(i + 1).trim();
+      return isDemoSessionValue(v) ? v : null;
+    }
+  }
+  return null;
 }
 
 /** The raw session value from a Cookie request header, or null (a malformed value counts as none). */
@@ -37,6 +68,17 @@ export function readDemoSessionFromHeader(cookieHeader: string | null): string |
 export async function readDemoSessionHash(): Promise<string | null> {
   const v = (await cookies()).get(DEMO_SESSION_COOKIE)?.value;
   return isDemoSessionValue(v) ? hashDemoSession(v) : null;
+}
+
+/**
+ * Server actions only: ALWAYS issues a fresh session (new cookie, new hash). enterDemo calls it when it creates a
+ * visitor, so the cookie's lifetime starts with the visitor's and a cookie from an earlier visit cannot carry over.
+ */
+export async function rotateDemoSessionHash(): Promise<string> {
+  const jar = await cookies();
+  const raw = newDemoSessionValue();
+  jar.set(DEMO_SESSION_COOKIE, raw, { httpOnly: true, sameSite: "lax", secure: secureCookie(), path: "/", maxAge: DEMO_SESSION_MAX_AGE });
+  return hashDemoSession(raw);
 }
 
 /** Server actions / route handlers only (sets a cookie when the visitor has none yet). */

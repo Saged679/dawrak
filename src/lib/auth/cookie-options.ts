@@ -7,8 +7,9 @@
  * no document.cookie access), so page scripts never need the tokens and an XSS cannot steal them.
  */
 export const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-/** Demo visitors are deleted after 24 h, so their session cookie need not live longer. */
-export const DEMO_AUTH_COOKIE_MAX_AGE = 60 * 60 * 24;
+/** Demo visitors are deleted after 6 h (demo_users.expires_at), so their session cookie need not live longer. */
+export const DEMO_VISITOR_TTL_HOURS = 6;
+export const DEMO_AUTH_COOKIE_MAX_AGE = 60 * 60 * DEMO_VISITOR_TTL_HOURS;
 
 export function authCookieOptions(opts: { maxAge?: number; production?: boolean } = {}) {
   return {

@@ -166,9 +166,9 @@ describe("writes", () => {
     expect((upd.args[0] as { brand_color: string }).brand_color).toBe("#0f766e");
   });
 
-  it("demo tenant: refuses a changed locked field before any update, and sends only deposit_* otherwise", async () => {
+  it("demo tenant: refuses a changed locked field (deposit included) before any update; an unchanged form is a no-op success", async () => {
     state.session = session("owner", { tenant: { ...(session("owner") as { tenant: object }).tenant, is_demo: true } });
-    const current = { name_ar: "ع", name_en: "Clinic", timezone: "Asia/Riyadh", currency: "SAR", logo_url: null, brand_color: null };
+    const current = { name_ar: "ع", name_en: "Clinic", timezone: "Asia/Riyadh", currency: "SAR", logo_url: null, brand_color: null, deposit_enabled: false, deposit_type: "fixed", deposit_value: 0 };
     state.results["tenants.select"] = { data: current, error: null };
     state.results["tenants.update"] = { data: [{ id: TENANT }], error: null };
 
@@ -178,10 +178,16 @@ describe("writes", () => {
     expect(state.calls.some((c) => c.op === "update")).toBe(false);
 
     state.calls.length = 0;
-    const ok = await saveSettings({ ...settings, name_en: "Clinic", deposit_enabled: true, deposit_type: "fixed", deposit_value: "25" });
+    // M4: the deposit is frozen on a demo business
+    const dep = await saveSettings({ ...settings, name_en: "Clinic", deposit_enabled: true, deposit_type: "fixed", deposit_value: "25" });
+    expect(dep).toMatchObject({ ok: false, code: "demo_readonly" });
+    expect((dep as { fields: string[] }).fields.sort()).toEqual(["deposit_enabled", "deposit_value"]);
+    expect(state.calls.some((c) => c.op === "update")).toBe(false);
+
+    state.calls.length = 0;
+    const ok = await saveSettings({ ...settings, name_en: "Clinic" });
     expect(ok).toEqual({ ok: true });
-    const upd = state.calls.find((c) => c.table === "tenants" && c.op === "update")!;
-    expect(Object.keys(upd.args[0] as object).sort()).toEqual(["deposit_enabled", "deposit_type", "deposit_value"]);
+    expect(state.calls.some((c) => c.op === "update")).toBe(false);
   });
 
   it("treats an RLS-denied update (zero rows) as forbidden", async () => {

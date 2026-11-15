@@ -5,15 +5,18 @@ import { webChannel } from "@/lib/channels/web";
 import { hasGeminiKey } from "./key-pool";
 import { getOrCreateConversation, loadHistory, saveMessage } from "./conversation";
 import { createAgentDb } from "./db";
-import { checkAudioIpLimit, checkAudioTenantLimit, checkIpLimit, checkTenantLimit } from "./rate-limit";
+import { checkAudioIpLimit, checkAudioTenantLimit, checkIpDayLimit, checkIpLimit, checkTenantLimit } from "./rate-limit";
 import { createAfterBooking, type SendBookingEmail } from "./booking-mail";
 import { e2eMockEnabled } from "./mock-gate";
 import { modelIdsFromEnv, sharedQuotaMemo, type AssistantQuotaError, type QuotaMemo } from "./models";
 import { runAgent } from "./run-agent";
 import {
+  chatOwnerHash,
+  chatSessionSetCookie,
   demoSessionSetCookie,
   hashDemoSession,
   newDemoSessionValue,
+  readChatSessionFromHeader,
   readDemoSessionFromHeader,
 } from "@/lib/demo/session";
 import type { AgentDb } from "./types";
@@ -107,10 +110,21 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   }
 
   try {
+    // Request-shape checks first: a cross-site or malformed request never consumes a visitor's limits.
+    channel.precheck?.(req);
+
     const ipLimit = await checkIpLimit(db, getClientIp(req.headers));
     if (!ipLimit.ok) {
       return errorResponse(429, "rate_limited", "Too many messages. Please wait a few minutes and try again.", {
         retryAfterSeconds: ipLimit.retryAfterSeconds,
+      });
+    }
+
+    // L3: per-IP daily cap besides the 10-minute window and the tenant cap (one visitor cannot burn the tenant's day)
+    const ipDay = await checkIpDayLimit(db, getClientIp(req.headers));
+    if (!ipDay.ok) {
+      return errorResponse(429, "ip_daily_limit", "You have reached today's message limit. Please try again tomorrow.", {
+        retryAfterSeconds: ipDay.retryAfterSeconds,
       });
     }
 
@@ -144,19 +158,32 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
       }
     }
 
-    // Demo tenant: the visitor's httpOnly random session (same cookie as the web booking form). It is
-    // created here, before the stream starts, because headers cannot change once it has. Only its
-    // SHA-256 reaches the database; the model never sees any of it.
+    // The visitor's httpOnly random session (the same cookie as the demo web booking form). It is created here,
+    // before the stream starts, because headers cannot change once it has. Only its SHA-256 reaches the database;
+    // the model never sees any of it. L5: a conversation can only be resumed by the session that created it, so a
+    // conversation id alone (it is in a header and in localStorage) is not enough. Demo tenants also use the hash as the
+    // data owner (per-visitor isolation) and for their mailbox.
     const isDemo = tenant.is_demo === true;
-    let sessionHash: string | null = null;
     let newCookie: string | null = null;
+    let ownerHash: string;
+    let sessionHash: string | null = null;
     if (isDemo) {
       let raw = readDemoSessionFromHeader(req.headers.get("cookie"));
       if (!raw) {
         raw = newDemoSessionValue();
         newCookie = demoSessionSetCookie(raw);
       }
-      sessionHash = hashDemoSession(raw);
+      ownerHash = hashDemoSession(raw);
+      sessionHash = ownerHash;
+    } else {
+      // Real tenants: a SEPARATE long-lived chat cookie, hashed per tenant, never the demo session (whose rows are purged
+      // by hash) and never linkable across businesses.
+      let raw = readChatSessionFromHeader(req.headers.get("cookie"));
+      if (!raw) {
+        raw = newDemoSessionValue();
+        newCookie = chatSessionSetCookie(raw);
+      }
+      ownerHash = chatOwnerHash(raw, tenant.id);
     }
     const afterBooking = createAfterBooking({
       db,
@@ -170,6 +197,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
       tenantId: tenant.id,
       channel: "web",
       conversationId: inbound.conversationId,
+      sessionHash: ownerHash,
     });
     const history = await loadHistory(db, tenant.id, conversationId);
     await saveMessage(db, {
@@ -194,6 +222,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
       registerPersistence: (p) => void (persisted = p),
       tenantId: tenant.id,
       conversationId,
+      sessionHash,
       message: inbound.message,
       locale: inbound.locale,
       history,

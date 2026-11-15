@@ -63,13 +63,13 @@ export default async function OverviewPage({ params }: Props) {
           {t("title")}
         </h2>
         <div className="flex flex-col justify-between gap-3 rounded-2xl bg-cobalt p-6 text-white">
-          <p className="text-sm text-white/85">{t("todayCount")}</p>
+          <p className="text-sm text-white">{t("todayCount")}</p>
           <p className="font-heading text-6xl font-bold tabular-nums" data-testid="today-count">
             <CountUp text={formatNumber(o.today.length, loc)} />
           </p>
           <Link
             href="/dashboard/calendar"
-            className="w-fit rounded-md font-medium text-saffron underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-saffron"
+            className="w-fit rounded-md font-medium text-white underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-saffron"
           >
             {t("openCalendar")}
           </Link>
