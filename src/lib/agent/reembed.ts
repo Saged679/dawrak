@@ -1,4 +1,5 @@
 import { EMBEDDING_DIMENSIONS, embedTexts, type Embedder } from "./knowledge";
+import { hasGeminiKey } from "./key-pool";
 import type { AgentDb } from "./types";
 
 export const REEMBED_LIMIT = 24;
@@ -32,7 +33,7 @@ export async function reembedMissing(
 ): Promise<ReembedResult> {
   const limit = opts.limit ?? REEMBED_LIMIT;
   const embedder = opts.embedder ?? embedTexts;
-  const hasKey = opts.hasKey ?? Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+  const hasKey = opts.hasKey ?? hasGeminiKey();
   if (!opts.embedder && !hasKey) return { embedded: 0, skipped: "no_key" };
 
   try {

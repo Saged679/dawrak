@@ -1,4 +1,5 @@
 import type { LanguageModel } from "ai";
+import { withKeyFailover, type KeyPool } from "./key-pool";
 import { AssistantQuotaError, classifyModelError, QuotaMemo, type ChainEntry, type ModelFailure, type QuotaScope } from "./models";
 
 type LM = Extract<LanguageModel, { specificationVersion: "v4" }>;
@@ -22,19 +23,24 @@ export type FallbackEvent = { model: string; failure: ModelFailure };
  */
 export function createFallbackModel(
   chain: ChainEntry[],
-  opts: { memo?: QuotaMemo; onFallback?: (e: FallbackEvent) => void } = {},
+  opts: { memo?: QuotaMemo; pool?: KeyPool; onFallback?: (e: FallbackEvent) => void } = {},
 ): LM {
   if (chain.length === 0) throw new Error("empty model chain");
   const memo = opts.memo ?? new QuotaMemo();
   const first = chain[0].model as LM;
 
-  async function attempt<T>(call: (e: ChainEntry) => PromiseLike<T>): Promise<T> {
+  async function attempt<T>(call: (e: ChainEntry, model: LanguageModel) => PromiseLike<T>): Promise<T> {
     type Worst = { scope: QuotaScope; retryAfterSeconds?: number };
     let worst: Worst | null = null as Worst | null;
     for (const entry of chain) {
       if (memo.blockedFor(entry.id)) continue;
       try {
-        return await call(entry);
+        // Per model: every available API key once (key-pool.ts), then the next model. Only the model call is retried
+        // (it runs before the SDK executes any tool, and a started stream is never retried), so no tool can run twice.
+        const pool = opts.pool;
+        return await (pool && pool.size > 0 && entry.forKey
+          ? withKeyFailover(pool, entry.id, (i) => call(entry, entry.forKey!(i)))
+          : call(entry, entry.model));
       } catch (err) {
         const failure = classifyModelError(err);
         if (!failure) throw err;
@@ -70,7 +76,7 @@ export function createFallbackModel(
     provider: "dawrak-fallback",
     modelId: chain.map((c) => c.id).join(">"),
     supportedUrls: first.supportedUrls,
-    doStream: (o: StreamOptions) => attempt((e) => (e.model as LM).doStream(withThinking(o, e) as StreamOptions)),
-    doGenerate: (o: GenerateOptions) => attempt((e) => (e.model as LM).doGenerate(withThinking(o, e) as GenerateOptions)),
+    doStream: (o: StreamOptions) => attempt((e, m) => (m as LM).doStream(withThinking(o, e) as StreamOptions)),
+    doGenerate: (o: GenerateOptions) => attempt((e, m) => (m as LM).doGenerate(withThinking(o, e) as GenerateOptions)),
   } as LM;
 }

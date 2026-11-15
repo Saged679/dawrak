@@ -1,5 +1,5 @@
-import { google } from "@ai-sdk/google";
 import type { LanguageModel } from "ai";
+import { getKeyPool, googleFor } from "./key-pool";
 
 /**
  * Model fallback chain for the Gemini free tier (quotas are per model and per day).
@@ -7,6 +7,7 @@ import type { LanguageModel } from "ai";
  *   GEMINI_MODEL             primary model (default gemini-3.5-flash-lite)
  *   GEMINI_FALLBACK_MODELS   comma-separated, tried in order when the previous one is out of quota (429
  *                            RESOURCE_EXHAUSTED) or gone (404, retired)
+ *   GOOGLE_GENERATIVE_AI_API_KEYS  several free-tier keys; per-key failover happens before the next model (key-pool.ts)
  *   GEMINI_THINKING          minimal | low | medium | high | default (see thinkingFor)
  */
 export const DEFAULT_MODEL = "gemini-3.5-flash-lite";
@@ -44,10 +45,22 @@ export function thinkingFor(modelId: string, env: Record<string, string | undefi
   return isLite3 ? "minimal" : undefined;
 }
 
-export type ChainEntry = { id: string; model: LanguageModel; thinking?: Level };
+export type ChainEntry = {
+  id: string;
+  model: LanguageModel;
+  thinking?: Level;
+  /** Model bound to API key #index of the key pool (-1 = default provider). Absent on injected/mock chains. */
+  forKey?: (keyIndex: number) => LanguageModel;
+};
 
 export function chainFromEnv(env: Record<string, string | undefined> = process.env): ChainEntry[] {
-  return modelIdsFromEnv(env).map((id) => ({ id, model: google(id), thinking: thinkingFor(id, env) }));
+  const pool = getKeyPool(env);
+  return modelIdsFromEnv(env).map((id) => ({
+    id,
+    model: googleFor(pool, pool.size ? 0 : -1)(id),
+    thinking: thinkingFor(id, env),
+    forKey: (i: number) => googleFor(pool, i)(id),
+  }));
 }
 
 // ---------------------------------------------------------------------------------------------

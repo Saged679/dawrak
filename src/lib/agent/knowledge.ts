@@ -1,5 +1,5 @@
 import { embed, embedMany } from "ai";
-import { google } from "@ai-sdk/google";
+import { getKeyPool, googleFor, withKeyFailover } from "./key-pool";
 import type { AgentDb } from "./types";
 
 /** Must match supabase kb_chunks.embedding vector(768). */
@@ -10,7 +10,10 @@ export type ChunkOptions = { maxChars?: number; overlap?: number };
 
 /** Split text on paragraph/sentence boundaries into ~maxChars chunks with a small overlap. */
 export function chunkText(text: string, { maxChars = 900, overlap = 120 }: ChunkOptions = {}): string[] {
-  const clean = text.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").trim();
+  const clean = text
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
   if (!clean) return [];
   const units = clean
     .split(/\n{2,}/)
@@ -46,22 +49,40 @@ const toPgVector = (v: number[]) => `[${v.join(",")}]`;
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
-  const { embeddings } = await embedMany({
-    model: google.embedding(EMBEDDING_MODEL),
-    values: texts,
-    // retries (with backoff and a small batch size) are handled by embedInBatches
-    maxRetries: 0,
-    providerOptions: { google: { outputDimensionality: EMBEDDING_DIMENSIONS, taskType: "RETRIEVAL_DOCUMENT" } },
-  });
+  const pool = getKeyPool();
+  const { embeddings } = await withKeyFailover(pool, `embed:${EMBEDDING_MODEL}`, (i) =>
+    embedMany({
+      model: googleFor(pool, i).embedding(EMBEDDING_MODEL),
+      values: texts,
+      // retries (with backoff and a small batch size) are handled by embedInBatches
+      maxRetries: 0,
+      providerOptions: {
+        google: {
+          outputDimensionality: EMBEDDING_DIMENSIONS,
+          taskType: "RETRIEVAL_DOCUMENT",
+        },
+      },
+    }),
+  );
   return embeddings.map(l2Normalize);
 }
 
 export async function embedQuery(text: string): Promise<number[]> {
-  const { embedding } = await embed({
-    model: google.embedding(EMBEDDING_MODEL),
-    value: text,
-    providerOptions: { google: { outputDimensionality: EMBEDDING_DIMENSIONS, taskType: "RETRIEVAL_QUERY" } },
-  });
+  const pool = getKeyPool();
+  const { embedding } = await withKeyFailover(pool, `embed:${EMBEDDING_MODEL}`, (i) =>
+    embed({
+      model: googleFor(pool, i).embedding(EMBEDDING_MODEL),
+      value: text,
+      // with several keys the next key is the retry; a single key keeps the SDK's default retries
+      ...(pool.size > 1 ? { maxRetries: 0 } : {}),
+      providerOptions: {
+        google: {
+          outputDimensionality: EMBEDDING_DIMENSIONS,
+          taskType: "RETRIEVAL_QUERY",
+        },
+      },
+    }),
+  );
   return l2Normalize(embedding);
 }
 
@@ -132,7 +153,12 @@ export async function searchKnowledge(
     p_k: k,
   });
   if (error) throw error;
-  return (data ?? []) as { id: string; document_id: string; content: string; similarity: number }[];
+  return (data ?? []) as {
+    id: string;
+    document_id: string;
+    content: string;
+    similarity: number;
+  }[];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -206,7 +232,12 @@ export async function withRetry<T>(
     baseMs = 800,
     sleep = realSleep,
     retryable = isRetryableEmbeddingError,
-  }: { attempts?: number; baseMs?: number; sleep?: Sleep; retryable?: (e: unknown) => boolean } = {},
+  }: {
+    attempts?: number;
+    baseMs?: number;
+    sleep?: Sleep;
+    retryable?: (e: unknown) => boolean;
+  } = {},
 ): Promise<T> {
   for (let i = 0; ; i++) {
     try {
@@ -230,7 +261,10 @@ export async function embedInBatches(
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += size) {
     const batch = texts.slice(i, i + size);
-    const vectors = await withRetry(() => embedder(batch), { sleep: opts.sleep, baseMs: opts.baseMs });
+    const vectors = await withRetry(() => embedder(batch), {
+      sleep: opts.sleep,
+      baseMs: opts.baseMs,
+    });
     if (vectors.length !== batch.length || vectors.some((v) => v.length !== EMBEDDING_DIMENSIONS)) {
       throw new Error("embedding_shape_mismatch");
     }
@@ -242,7 +276,9 @@ export async function embedInBatches(
 /** Deterministic offline embedder for tests and e2e (DAWRAK_MOCK_EMBEDDINGS=1). Text containing FAILME fails. */
 export async function mockEmbedder(texts: string[]): Promise<number[][]> {
   if (texts.some((t) => t.includes("FAILME"))) {
-    throw Object.assign(new Error("mock embedding failure"), { statusCode: 400 });
+    throw Object.assign(new Error("mock embedding failure"), {
+      statusCode: 400,
+    });
   }
   return texts.map((t) => {
     const v = Array.from(

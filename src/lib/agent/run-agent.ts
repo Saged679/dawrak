@@ -1,6 +1,7 @@
 import { isStepCount, streamText, type LanguageModel, type ModelMessage } from "ai";
 import { createAgentDb } from "./db";
 import { createFallbackModel } from "./fallback-model";
+import { getKeyPool } from "./key-pool";
 import { chainFromEnv, DEFAULT_MODEL, QuotaMemo, sharedQuotaMemo, type ChainEntry } from "./models";
 import { createRepairToolCall } from "./tool-input";
 import { guardPrepareText, guardReply, redactTokens, TurnState } from "./turn-guard";
@@ -140,6 +141,7 @@ export async function runAgent(input: RunAgentInput) {
 
   const injected = input.deps?.chain ?? (input.deps?.model ? [{ id: "injected", model: input.deps.model }] : null);
   const model = createFallbackModel(injected ?? chainFromEnv(), {
+    pool: injected ? undefined : getKeyPool(),
     memo: input.deps?.quotaMemo ?? (injected ? new QuotaMemo() : sharedQuotaMemo),
     onFallback: (e) => console.warn("model_unavailable", JSON.stringify({ model: e.model, ...e.failure })),
   });

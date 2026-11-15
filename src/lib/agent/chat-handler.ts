@@ -2,6 +2,7 @@ import type { LanguageModel } from "ai";
 import { getClientIp } from "@/lib/db/client-ip";
 import { ChannelError, type ChannelAdapter } from "@/lib/channels/types";
 import { webChannel } from "@/lib/channels/web";
+import { hasGeminiKey } from "./key-pool";
 import { getOrCreateConversation, loadHistory, saveMessage } from "./conversation";
 import { createAgentDb } from "./db";
 import { checkAudioIpLimit, checkAudioTenantLimit, checkIpLimit, checkTenantLimit } from "./rate-limit";
@@ -76,7 +77,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
     return errorResponse(503, "not_configured", "The assistant is not configured yet.");
   }
   const model = deps.model ?? (e2eMockEnabled(req.headers) ? await (await import("./mock-model")).mockChatModel(req) : null) ?? undefined;
-  if (!model && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!model && !hasGeminiKey()) {
     return errorResponse(503, "not_configured", "The assistant is not configured yet.");
   }
 
