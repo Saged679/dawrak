@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import createMiddleware from "next-intl/middleware";
 import { routing } from "./i18n/routing";
 import { authCookieOptions, DEMO_AUTH_COOKIE_MAX_AGE, withAuthMaxAge } from "./lib/auth/cookie-options";
-import { notFoundRewrite } from "./lib/auth/not-found-rewrite";
+import { notFoundResponse } from "./lib/auth/not-found-rewrite";
 import { isKnownLocalePath, pathInfo } from "./lib/auth/paths";
 import { tenantSlugExists } from "./lib/db/tenant-exists";
 
@@ -18,12 +18,12 @@ export default async function proxy(request: NextRequest) {
 
   // 1b. A path under a locale that no route matches: answer with the server-rendered 404 page (see isKnownLocalePath).
   if (locale && !isKnownLocalePath(path) && !response.headers.get("location")) {
-    return notFoundRewrite(request, locale, response);
+    return notFoundResponse(locale, response);
   }
   // 1c. Same for /c/<unknown-slug>[/...]: a notFound() thrown by the page would give the empty error shell.
   if (locale && !response.headers.get("location")) {
     const m = /^\/c\/([^/]+)/.exec(path);
-    if (m && !(await tenantSlugExists(m[1]))) return notFoundRewrite(request, locale, response);
+    if (m && !(await tenantSlugExists(m[1]))) return notFoundResponse(locale, response);
   }
   if (!locale || !needsSession) return response;
 

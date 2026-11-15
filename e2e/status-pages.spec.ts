@@ -44,6 +44,21 @@ test.describe("404 without JavaScript: the server HTML itself carries the page",
   }
 });
 
+test.describe("the locale in the path wins over Accept-Language and the NEXT_LOCALE cookie", () => {
+  for (const [path, locale, other] of [["/en/nope", "en", "ar"], ["/en/c/zzz-nope", "en", "ar"], ["/ar/nope", "ar", "en"]] as const) {
+    test(`${path} with Accept-Language ${other} and NEXT_LOCALE=${other}`, async ({ browser, baseURL }) => {
+      const ctx = await browser.newContext({ javaScriptEnabled: false, extraHTTPHeaders: { "accept-language": other } });
+      await ctx.addCookies([{ name: "NEXT_LOCALE", value: other, url: baseURL! }]);
+      const page = await ctx.newPage();
+      const res = await page.goto(path);
+      expect(res?.status()).toBe(404);
+      expect(await res!.text()).toContain(`<html lang="${locale}" dir="${COPY[locale].dir}"`);
+      await expect(page.locator("h1")).toHaveText(COPY[locale].title);
+      await ctx.close();
+    });
+  }
+});
+
 test("a bare unknown path is redirected into a locale and then 404s localized", async ({ page }) => {
   const res = await page.goto("/totally-unknown");
   expect(res?.status()).toBe(404);

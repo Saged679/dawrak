@@ -143,7 +143,7 @@ describe("isKnownLocalePath (proxy 404 rewrite)", () => {
     const routes = readdirSync(dir)
       .filter((n) => statSync(`${dir}/${n}`).isDirectory() || n === "opengraph-image.tsx")
       .map((n) => n.replace(/.tsx$/, ""))
-      .filter((n) => !["[...rest]", "page-not-found"].includes(n));
+      .filter((n) => !["[...rest]"].includes(n));
     expect(routes.sort()).toEqual(Object.keys(LOCALE_ROUTES).sort());
   });
   it("accepts real paths", () => {

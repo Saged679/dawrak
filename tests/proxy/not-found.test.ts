@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import proxy from "@/proxy";
 import { clearTenantSlugCache, tenantSlugExists } from "@/lib/db/tenant-exists";
 
-const req = (path: string) => new NextRequest(`http://localhost:3100${path}`);
+const req = (path: string, headers: Record<string, string> = {}) => new NextRequest(`http://localhost:3100${path}`, { headers });
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -11,31 +11,45 @@ afterEach(() => {
   clearTenantSlugCache();
 });
 
-describe("proxy 404 rewrite carries the path's locale", () => {
+describe("proxy answers an unknown path with the 404 document itself, in the path's locale", () => {
   it.each([
-    ["/en/nope", "en"],
-    ["/ar/nope", "ar"],
-    ["/en/no/such/page", "en"],
-    ["/ar/login/extra", "ar"],
-  ])("%s -> /%s/page-not-found, status 404, locale header", async (path, locale) => {
+    ["/en/nope", "en", "ltr", "We couldn&#39;t find this page"],
+    ["/ar/nope", "ar", "rtl", "لم نجد هذه الصفحة"],
+    ["/en/no/such/page", "en", "ltr", "We couldn&#39;t find this page"],
+    ["/ar/login/extra", "ar", "rtl", "لم نجد هذه الصفحة"],
+  ])("%s -> status 404, lang=%s dir=%s", async (path, locale, dir, title) => {
     const res = await proxy(req(path));
     expect(res.status).toBe(404);
-    expect(res.headers.get("x-middleware-rewrite")).toContain(`/${locale}/page-not-found`);
-    expect(res.headers.get("x-next-intl-locale")).toBe(locale);
-    expect(res.headers.get("x-middleware-request-x-next-intl-locale")).toBe(locale);
+    const html = await res.text();
+    expect(html).toContain(`<html lang="${locale}" dir="${dir}"`);
+    expect(html).toContain(`<h1>${title}</h1>`);
+    expect(html).toContain(`href="/${locale}"`);
+    expect(html).toContain('name="robots" content="noindex"');
+    expect(res.headers.get("x-robots-tag")).toBe("noindex");
+    expect(res.headers.get("x-middleware-rewrite")).toBeNull();
+  });
+
+  it("the locale in the path wins over Accept-Language and NEXT_LOCALE", async () => {
+    const res = await proxy(req("/en/nope", { "accept-language": "ar", cookie: "NEXT_LOCALE=ar" }));
+    expect(res.status).toBe(404);
+    const html = await res.text();
+    expect(html).toContain('<html lang="en" dir="ltr"');
+    expect(html).toContain("We couldn&#39;t find this page");
+    const ar = await (await proxy(req("/ar/nope", { "accept-language": "en", cookie: "NEXT_LOCALE=en" }))).text();
+    expect(ar).toContain('<html lang="ar" dir="rtl"');
   });
 });
 
-describe("unknown clinic slug gets the same rendered 404", () => {
-  it("rewrites /en/c/<unknown> to the English 404 page", async () => {
+describe("unknown clinic slug gets the same 404", () => {
+  it("answers /en/c/<unknown> with the English 404", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-test");
     vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200 })));
-    const res = await proxy(req("/en/c/zzz-nope"));
+    const res = await proxy(req("/en/c/zzz-nope", { "accept-language": "ar" }));
     expect(res.status).toBe(404);
-    expect(res.headers.get("x-middleware-rewrite")).toContain("/en/page-not-found");
+    expect(await res.text()).toContain('<html lang="en" dir="ltr"');
   });
-  it("lets a known slug through (no rewrite)", async () => {
+  it("lets a known slug through (no 404)", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-test");
     vi.stubGlobal("fetch", vi.fn(async () => new Response('[{"id":"x"}]', { status: 200 })));
