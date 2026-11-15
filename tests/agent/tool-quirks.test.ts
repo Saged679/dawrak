@@ -96,12 +96,14 @@ describe("create_booking takes only the token; whatever else the model sends is 
   });
 
   it.each([true, "true", "yes", false, "false", "", null, 1, "نعم", [], {}])(
-    "user_confirmed=%j is ignored: the token and the visitor's message decide",
+    "user_confirmed=%j is ignored: the gate (delivered pending + affirmative next message) decides",
     async (v) => {
       const withTok = await runWith(withToken({ user_confirmed: v }));
       expect(withTok.booked).toBeDefined();
+      // no token from the model: the server's own pending token is used (the gate is otherwise unchanged), so the
+      // outcome is the same and user_confirmed never matters
       const without = await runWith(withToken({ user_confirmed: v }, null));
-      expect(without.booked).toBeUndefined();
+      expect(without.booked).toBeDefined();
     },
   );
 

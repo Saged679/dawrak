@@ -4,7 +4,7 @@ import { createFallbackModel } from "./fallback-model";
 import { getKeyPool } from "./key-pool";
 import { chainFromEnv, DEFAULT_MODEL, QuotaMemo, sharedQuotaMemo, type ChainEntry } from "./models";
 import { createRepairToolCall } from "./tool-input";
-import { guardPrepareText, guardReply, redactTokens, TurnState } from "./turn-guard";
+import { claimGuardTransform, guardPrepareText, guardReply, redactTokens, TurnState } from "./turn-guard";
 import { embedQuery as defaultEmbedQuery } from "./knowledge";
 import { isAffirmative } from "./affirmative";
 import { messageCreatedAt } from "./conversation";
@@ -30,6 +30,12 @@ export type RunAgentInput = {
   /** Called with the final assistant text once the stream is done (for persistence). */
   /** Persists the reply; may return the stored message id (used to mark a pending summary as DELIVERED). */
   onReply?: (text: string) => void | string | undefined | Promise<void | string | undefined>;
+  /**
+   * Receives a promise that settles when the reply AND the delivered mark are persisted (onEnd finished). The
+   * channel holds the response open until then, so the visitor can never answer before the summary counts as
+   * delivered, and the serverless function is not frozen mid-write.
+   */
+  registerPersistence?: (settled: Promise<void>) => void;
   /** Channel hook after a successful booking (confirmation mail, demo session). */
   afterBooking?: AfterBooking;
   /** Test/DI hooks. */
@@ -110,6 +116,7 @@ export async function runAgent(input: RunAgentInput) {
       latest: input.message.type === "text" ? { type: "text", text: input.message.text } : { type: "audio" },
     },
     state: stateStore,
+    confirmable: latestAffirmative,
     now: input.deps?.now ? () => input.deps!.now!.getTime() : undefined,
     db,
     tenantId: tenant.id,
@@ -148,8 +155,12 @@ export async function runAgent(input: RunAgentInput) {
 
   const messages: ModelMessage[] = [...(input.history ?? []).slice(-MAX_HISTORY), toUserContent(input.message)];
 
+  let settle!: () => void;
+  input.registerPersistence?.(new Promise<void>((r) => (settle = r)));
+
   return streamText({
     model,
+    experimental_transform: claimGuardTransform(turn, { confirmable: latestAffirmative }) as never,
     system: buildSystemPrompt(tenant, input.locale, input.deps?.now, {
       catalog,
       state: formatStateForPrompt(stateStore.current, nowMs, latestAffirmative),
@@ -162,6 +173,7 @@ export async function runAgent(input: RunAgentInput) {
     maxOutputTokens: 700,
     temperature: 0.3,
     onEnd: async (event) => {
+      try {
       if (input.onReply) {
         // What the visitor was actually shown goes into the stored message: the server's own summary first (the
         // widget renders it as a card), then the model's short text. History and the conversations page match the screen.
@@ -175,6 +187,11 @@ export async function runAgent(input: RunAgentInput) {
         // DELIVERED: the message carrying the summary is now persisted. Only now can the visitor's reply confirm it.
         if (shown && p && typeof messageId === "string") await stateStore.patch({ pending: { ...p, delivered_message_id: messageId } });
       }
+      } finally {
+        settle();
+      }
     },
+    onAbort: () => settle(),
+    onError: () => settle(),
   });
 }

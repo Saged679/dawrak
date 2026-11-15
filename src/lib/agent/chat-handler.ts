@@ -46,6 +46,25 @@ export function quotaResponse(e: AssistantQuotaError) {
   );
 }
 
+/**
+ * Keeps the response stream open until the assistant message (and the "delivered" mark of a pending summary) is
+ * persisted. Without this the browser sees the stream end first, the visitor can tap Confirm before the write
+ * lands (the confirming message would then be stored BEFORE the summary message and the gate drops it), and on
+ * serverless the function can be frozen right after the response, losing the write. Bounded wait: a stuck write
+ * never hangs the stream.
+ */
+export function holdUntilPersisted(res: Response, persisted: () => Promise<void>, maxMs = 15_000): Response {
+  if (!res.body) return res;
+  const wait = new TransformStream<Uint8Array, Uint8Array>({
+    async flush() {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([persisted().catch(() => {}), new Promise<void>((r) => (timer = setTimeout(r, maxMs)))]);
+      clearTimeout(timer);
+    },
+  });
+  return new Response(res.body.pipeThrough(wait), { status: res.status, statusText: res.statusText, headers: res.headers });
+}
+
 /** Text stored in messages.content for a voice turn (also what later turns see as history). */
 export function voiceNoteLabel(durationSeconds?: number | null): string {
   return durationSeconds == null ? "[voice note]" : `[voice note, ${Math.max(1, Math.round(durationSeconds))} s]`;
@@ -170,7 +189,9 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
           : null,
     });
 
+    let persisted: Promise<void> = Promise.resolve();
     const result = await runAgent({
+      registerPersistence: (p) => void (persisted = p),
       tenantId: tenant.id,
       conversationId,
       message: inbound.message,
@@ -182,7 +203,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
       afterBooking,
       deps: { db, model, embedQuery: deps.embedQuery },
     });
-    const res = await channel.respond(result, { conversationId });
+    const res = holdUntilPersisted(await channel.respond(result, { conversationId }), () => persisted);
     if (!newCookie) return res;
     const headers = new Headers(res.headers);
     headers.append("set-cookie", newCookie);

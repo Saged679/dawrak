@@ -10,6 +10,7 @@ import {
   checkToken,
   deriveConfirmKey,
   hashArgs,
+  readToken,
   signConfirmation,
   type ConfirmAction,
 } from "./confirm";
@@ -173,7 +174,8 @@ const MUTATING_IGNORED = ["service_id", "provider_id", "date", "date_to", "time"
 const uuid = z.uuid();
 const dateKey = z.iso.date();
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "HH:mm");
-const token = z.string().trim().min(10).max(1000);
+// Deliberately lax: a short or mangled token must reach gate(), which substitutes the server's own token and validates.
+const token = z.string().trim().max(1000);
 
 /** Resolve the customer token bound to THIS conversation (server-side only). */
 async function getConversationToken(ctx: ToolContext): Promise<string | null> {
@@ -454,12 +456,18 @@ export function createTools(ctx: ToolContext) {
   ): Promise<{ fail: ToolFailure } | { jti: string; args: Record<string, string> }> {
     const latest = visitor?.latest;
     if (!latest || latest.type !== "text") return { fail: CONFIRM_FAIL.needs_text() };
+    if (ctx.confirmable === false) return { fail: CONFIRM_FAIL.required(prepare) };
     const pending = ctx.state?.current.pending;
     if (!pending || pending.action !== action) return { fail: CONFIRM_FAIL.required(prepare) };
     // The visitor must have been able to see the summary: its message has to be persisted (delivered) first.
     if (!pending.delivered_message_id) return { fail: CONFIRM_FAIL.required(prepare) };
+    // The model is only a courier for the token: when what it sends is not an authentic token at all (missing, invented,
+    // mangled) the server's own pending token is used. Safe because everything else still has to hold (pending record
+    // delivered, affirmative latest message, exactly the next visitor message, expiry, single use), and an AUTHENTIC
+    // token of another summary, tenant, conversation or action is still refused below.
+    const supplied = readToken(confirmationToken, key()) ? confirmationToken : pending.token;
     const c = checkToken(
-      confirmationToken,
+      supplied,
       { tenantId: ctx.tenantId, conversationId: ctx.conversationId, action, argsHash: pending.argsHash, userMessageCount: visitor.userMessageCount, now: now() },
       key(),
     );

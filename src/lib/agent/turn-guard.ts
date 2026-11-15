@@ -39,6 +39,15 @@ export class TurnState {
   bookingAttemptFailed(): boolean {
     return this.unresolved(BOOKING_TOOLS).length > 0;
   }
+  /** A mutating tool was called in this turn (any outcome). */
+  mutationAttempted(): boolean {
+    return this.events.some((e) => (BOOKING_TOOLS as readonly string[]).includes(e.tool));
+  }
+  /** The LAST mutating call of the turn did not return ok (refused, failed or rejected input): nothing was changed by it. */
+  lastMutationFailed(): boolean {
+    const last = this.events.filter((e) => (BOOKING_TOOLS as readonly string[]).includes(e.tool)).at(-1);
+    return !!last && last.kind !== "ok";
+  }
 }
 
 const AR = /[؀-ۿ]/;
@@ -62,7 +71,7 @@ export const looksLikeTechnicalApology = (t: string) => TECH_APOLOGY.some((r) =>
  * Arabic and English only; a language we do not match simply is not guarded (no false positives).
  */
 const DONE_CLAIM = [
-  /تم\s+(ال)?(حجز|تأكيد\s+(ال)?(حجز|موعد)|إلغاء|الغاء|تعديل\s+(ال)?(حجز|موعد)|نقل\s+(ال)?(حجز|موعد))/,
+  /تم\s+(ال)?(حجز|تأكيد\s+(ال)?(حجز|موعد)|إلغاء|الغاء|تعديل\s+(ال)?(حجز|موعد)|نقل\s+(ال)?(حجز|موعد))[؀-ۿ]*/,
   /(تم|جرى)\s+(حجز|تثبيت|تسجيل)\s+(موعد|الحجز)/,
   /(حجزت|ثبّت|ثبتّ|ثبتت|أكدت|ألغيت|الغيت)\s+(لك|ل?ك\s+)?(ال)?(موعد|حجز)/,
   /(موعدك|حجزك)\s+(تم\s+)?(مؤكد|تأكد|تثبت|اتحجز|انحجز|تم\s+حجزه)/,
@@ -71,6 +80,13 @@ const DONE_CLAIM = [
   /\b(appointment|booking)\s+(is\s+)?(now\s+)?(confirmed|booked)\b/i,
 ];
 export const claimsActionDone = (t: string) => DONE_CLAIM.some((r) => r.test(t));
+
+/**
+ * Broader wording used ONLY when the last mutating tool of the turn did not succeed (so any "done" talk is
+ * false): the narrow patterns above plus a bare "تم" / "بنجاح" / "successfully" / "done".
+ */
+const LOOSE_CLAIM = [/(?<![؀-ۿ])تم(?![؀-ۿ])/, /بنجاح/, /\bsuccessfully\b/i, /\b(all\s+set|done)\b/i];
+export const claimsSuccessLoosely = (t: string) => claimsActionDone(t) || LOOSE_CLAIM.some((r) => r.test(t));
 
 const NOT_DONE = {
   ar: "لم يتم تنفيذ الطلب بعد، ولم يُحجز أو يُعدّل أو يُلغَ أي موعد. هل تؤكد التفاصيل مرة ثانية لأحاول من جديد؟",
@@ -96,6 +112,10 @@ export type GuardOutcome = { text: string; changed: "none" | "apology_replaced" 
 export function guardReply(text: string, turn: TurnState): GuardOutcome {
   const ar = isArabicText(text);
   const lang = ar ? "ar" : "en";
+  // The LAST mutating call of the turn did not return ok: nothing was changed, so no success wording may stand.
+  if (!turn.bookingSucceeded() && turn.lastMutationFailed() && claimsSuccessLoosely(text)) {
+    return { text: NOT_DONE[lang], changed: "claim_replaced" };
+  }
   if (!turn.bookingSucceeded() && (turn.bookingAttemptFailed() || turn.preparedOk()) && claimsActionDone(text)) {
     return { text: NOT_DONE[lang], changed: "claim_replaced" };
   }
@@ -152,4 +172,51 @@ export function guardPrepareText(text: string, summary: string): string {
   const server = figures(summary);
   const conflict = [...mine.times].some((t) => !server.times.has(t)) || [...mine.amounts].some((a) => !server.amounts.has(a));
   return conflict ? NEUTRAL[lang] : text;
+}
+
+type Chunk = { type: string; id?: string; text?: string };
+
+/**
+ * Streaming side of the false-success guard. Text is HELD (per text part) in turns where a mutating or prepare_ tool
+ * exists or may come (`confirmable`: the visitor's message confirms a pending action) and released at the end of
+ * the model step, when the tool outcomes of that step are known, corrected when it claims success although no
+ * mutating call succeeded and the last one did not return ok. This also covers text written BEFORE a tool call in
+ * the same step. Other turns (questions, availability) stream untouched, token by token.
+ */
+export function claimGuardTransform(turn: TurnState, opts: { confirmable?: boolean } = {}) {
+  return () => {
+    const held = new Map<string, { start: Chunk; text: string; ended: boolean }>();
+    const flush = (controller: TransformStreamDefaultController<Chunk>) => {
+      for (const [id, b] of held) {
+        const text = guardReply(b.text, turn).text;
+        controller.enqueue(b.start);
+        if (text) controller.enqueue({ type: "text-delta", id, text });
+        controller.enqueue({ type: "text-end", id });
+      }
+      held.clear();
+    };
+    return new TransformStream<Chunk, Chunk>({
+      transform(chunk, controller) {
+        const id = chunk.id ?? "";
+        if (chunk.type === "text-start" && (opts.confirmable || turn.mutationAttempted() || turn.preparedOk())) {
+          held.set(id, { start: chunk, text: "", ended: false });
+          return;
+        }
+        const b = held.get(id);
+        if (b && chunk.type === "text-delta") {
+          b.text += chunk.text ?? "";
+          return;
+        }
+        if (b && chunk.type === "text-end") {
+          b.ended = true;
+          return;
+        }
+        if (chunk.type === "finish-step" || chunk.type === "finish") flush(controller);
+        controller.enqueue(chunk);
+      },
+      flush(controller) {
+        flush(controller);
+      },
+    });
+  };
 }

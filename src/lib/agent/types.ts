@@ -52,6 +52,11 @@ export type ToolContext = {
   state?: { readonly current: AgentStateLike; patch(p: AgentStateLike): Promise<boolean | void> };
   /** HMAC key for confirmation tokens; default: derived from the server secret (see confirm.ts). */
   confirmKey?: Buffer;
+  /**
+   * Server-computed: the visitor's newest message was accepted as an affirmative for a delivered, unexpired pending
+   * action (see run-agent.ts). Defence in depth: when explicitly false, mutating tools refuse. Undefined = not computed (unit tests).
+   */
+  confirmable?: boolean;
   /** Clock (ms), injectable for tests. */
   now?: () => number;
 };
