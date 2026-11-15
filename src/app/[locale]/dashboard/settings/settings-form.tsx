@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Stethoscope, Scissors } from "lucide-react";
-import { Field, inputClass, Notice, primaryBtn, type Msg } from "@/components/dashboard/manage/form-ui";
+import { Field, Notice, type Msg } from "@/components/dashboard/manage/form-ui";
+import { inputClass, primaryBtn } from "@/components/dashboard/manage/form-classes";
 import { saveSettings } from "./actions";
 import { useRouter } from "@/i18n/navigation";
 import { BRAND_COLOR, CURRENCIES, readableOn, TIMEZONES } from "@/lib/dashboard/manage";

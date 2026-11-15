@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import type { WriteResult } from "@/lib/dashboard/errors";
-import { quietBtn } from "./form-ui";
+import { quietBtn } from "./form-classes";
 
 /** Deactivate / reactivate button for a list row. The action is a server action chosen by the page. */
 export function ActiveToggle({

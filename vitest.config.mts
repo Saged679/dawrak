@@ -12,5 +12,7 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
     setupFiles: ["./tests/setup.ts"],
+    // next-intl's ESM build imports "next/server" without an extension; inline it so Vite resolves it (proxy test).
+    server: { deps: { inline: ["next-intl"] } },
   },
 });

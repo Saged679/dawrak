@@ -6,7 +6,8 @@ import { addFaq, addText } from "@/app/[locale]/dashboard/knowledge/actions";
 import { useRouter } from "@/i18n/navigation";
 import type { KbResult } from "@/lib/dashboard/knowledge";
 import { MAX_PDF_BYTES } from "@/lib/dashboard/knowledge-limits";
-import { Field, inputClass, Notice, primaryBtn, textareaClass, type Msg } from "@/components/dashboard/manage/form-ui";
+import { Field, Notice, type Msg } from "@/components/dashboard/manage/form-ui";
+import { inputClass, primaryBtn, textareaClass } from "@/components/dashboard/manage/form-classes";
 
 const card = "flex flex-col gap-4 rounded-2xl border border-line bg-paper p-4";
 

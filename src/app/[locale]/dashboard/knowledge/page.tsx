@@ -7,7 +7,7 @@ import { dateKeyInZone, formatGregorian, formatNumber, type Loc } from "@/compon
 import { AddFaqForm, AddTextForm, UploadPdfForm } from "@/components/dashboard/knowledge/add-forms";
 import { DocActions } from "@/components/dashboard/knowledge/doc-actions";
 import { DemoLockedBanner } from "@/components/dashboard/manage/demo-locked";
-import { quietBtn } from "@/components/dashboard/manage/form-ui";
+import { quietBtn } from "@/components/dashboard/manage/form-classes";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { MAX_DOC_CHARS } from "@/lib/agent/knowledge";

@@ -168,6 +168,13 @@ test.describe("the demo business is read-mostly", () => {
     await expect(page.getByTestId("demo-locked")).toBeVisible();
     await expect(page.getByTestId(`service-${svc.id}`).getByRole("button", { name: "Deactivate" })).toBeDisabled();
     await expect(page.getByTestId("service-new")).toHaveAttribute("aria-disabled", "true"); // creating is refused by the database too
+    // a client-module value called from a server component used to leak "function(...)" into class attributes
+    await expect(page.getByTestId("service-new")).toHaveClass(/rounded-full/);
+    expect(await page.locator('[class*="function("], [class*="primaryBtn"]').count()).toBe(0);
+    await page.goto("/en/dashboard/providers");
+    await expect(page.getByTestId("provider-new")).toHaveClass(/rounded-full/);
+    expect(await page.locator('[class*="function("], [class*="primaryBtn"]').count()).toBe(0);
+    await page.goto("/en/dashboard/services");
     await page.goto(`/en/dashboard/services/${svc.id}`);
     await expect(page.getByTestId("demo-locked")).toBeVisible();
     await expect(page.getByLabel("Name (English)")).toBeDisabled();

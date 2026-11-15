@@ -6,7 +6,7 @@ import { z } from "zod";
 import { CalendarCheck, Mic } from "lucide-react";
 import { dateKeyInZone, formatGregorian, formatTime, type Loc } from "@/components/booking/dates";
 import { BackLink } from "@/components/dashboard/manage/back-link";
-import { quietBtn } from "@/components/dashboard/manage/form-ui";
+import { quietBtn } from "@/components/dashboard/manage/form-classes";
 import { StatusBadge } from "@/components/dashboard/status";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";

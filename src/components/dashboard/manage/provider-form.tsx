@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { saveProvider } from "@/app/[locale]/dashboard/providers/actions";
 import { useRouter } from "@/i18n/navigation";
 import type { ProviderFull } from "@/lib/dashboard/catalog";
-import { Field, inputClass, Notice, primaryBtn, textareaClass, type Msg } from "./form-ui";
+import { Field, Notice, type Msg } from "./form-ui";
+import { inputClass, primaryBtn, textareaClass } from "./form-classes";
 
 export function ProviderForm({ provider, canEdit }: { provider: ProviderFull | null; canEdit: boolean }) {
   const t = useTranslations("Providers");

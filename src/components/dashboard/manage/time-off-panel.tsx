@@ -8,7 +8,8 @@ import { dateKeyInZone, formatGregorian, formatTime, type Loc } from "@/componen
 import { useRouter } from "@/i18n/navigation";
 import type { TimeOffRow } from "@/lib/dashboard/catalog";
 import { checkTimeOff } from "@/lib/dashboard/manage";
-import { Field, inputClass, Notice, primaryBtn, type Msg } from "./form-ui";
+import { Field, Notice, type Msg } from "./form-ui";
+import { inputClass, primaryBtn } from "./form-classes";
 
 export function TimeOffPanel({
   providerId,

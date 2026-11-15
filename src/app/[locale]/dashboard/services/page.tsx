@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { Pencil, Plus } from "lucide-react";
 import { formatMoney, formatNumber, type Loc } from "@/components/booking/dates";
 import { ActiveToggle } from "@/components/dashboard/manage/active-toggle";
-import { primaryBtn, quietBtn } from "@/components/dashboard/manage/form-ui";
+import { primaryBtn, quietBtn } from "@/components/dashboard/manage/form-classes";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { canManageCatalog } from "@/lib/auth/roles";

@@ -5,7 +5,7 @@ import { RefreshCw, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { reindex, removeDocument } from "@/app/[locale]/dashboard/knowledge/actions";
 import { useRouter } from "@/i18n/navigation";
-import { quietBtn } from "@/components/dashboard/manage/form-ui";
+import { quietBtn } from "@/components/dashboard/manage/form-classes";
 
 /** Retry / re-index and delete for one document row. Delete needs a second, explicit click. */
 export function DocActions({ id, failed, locked = false }: { id: string; failed: boolean; locked?: boolean }) {

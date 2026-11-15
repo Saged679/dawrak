@@ -24,7 +24,10 @@ for (const locale of ["ar", "en"] as const) {
 }
 
 test.describe("404 without JavaScript: the server HTML itself carries the page", () => {
-  for (const [path, locale] of [["/ar/no/such/page", "ar"], ["/en/nope", "en"], ["/en/login/extra", "en"]] as const) {
+  for (const [path, locale] of [
+    ["/ar/no/such/page", "ar"], ["/en/nope", "en"], ["/ar/nope", "ar"], ["/en/login/extra", "en"],
+    ["/ar/c/zzz-nope", "ar"], ["/en/c/zzz-nope", "en"], ["/en/c/zzz-nope/my/abc", "en"],
+  ] as const) {
     test(`${path}`, async ({ browser }) => {
       const ctx = await browser.newContext({ javaScriptEnabled: false });
       const page = await ctx.newPage();

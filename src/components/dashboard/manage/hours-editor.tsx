@@ -8,7 +8,8 @@ import { weekdayLong, type Loc } from "@/components/booking/dates";
 import { useRouter } from "@/i18n/navigation";
 import type { WorkingHourRow } from "@/lib/dashboard/catalog";
 import { validateWeek, type DayHours, type TimeRange } from "@/lib/dashboard/manage";
-import { inputClass, Notice, primaryBtn, quietBtn, type Msg } from "./form-ui";
+import { Notice, type Msg } from "./form-ui";
+import { inputClass, primaryBtn, quietBtn } from "./form-classes";
 
 // Sunday first (Saudi week); weekday numbers follow Postgres extract(dow): 0 = Sunday.
 const WEEK = [0, 1, 2, 3, 4, 5, 6];

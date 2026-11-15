@@ -4,7 +4,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Bot, ChevronLeft, ChevronRight, Globe, Mic } from "lucide-react";
 import { formatGregorian, dateKeyInZone, formatTime, type Loc } from "@/components/booking/dates";
-import { quietBtn } from "@/components/dashboard/manage/form-ui";
+import { quietBtn } from "@/components/dashboard/manage/form-classes";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { requireRole } from "@/lib/auth/session";

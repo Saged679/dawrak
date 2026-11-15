@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { saveService } from "@/app/[locale]/dashboard/services/actions";
 import { useRouter } from "@/i18n/navigation";
 import type { ServiceRow } from "@/lib/dashboard/catalog";
-import { Field, inputClass, Notice, primaryBtn, textareaClass, type Msg } from "./form-ui";
+import { Field, Notice, type Msg } from "./form-ui";
+import { inputClass, primaryBtn, textareaClass } from "./form-classes";
 
 type ProviderOption = { id: string; name: string; is_active: boolean };
 

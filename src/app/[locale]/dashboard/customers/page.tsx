@@ -9,7 +9,7 @@ import {
   formatNumber,
   type Loc,
 } from "@/components/booking/dates";
-import { inputClass, primaryBtn, quietBtn } from "@/components/dashboard/manage/form-ui";
+import { inputClass, primaryBtn, quietBtn } from "@/components/dashboard/manage/form-classes";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { requireSession } from "@/lib/auth/session";
