@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { LogoMark } from "@/components/brand/logo";
 
 export type HeroCopy = {
   phoneTitle: string;
@@ -120,7 +121,7 @@ export function HeroDemo({ copy }: { copy: HeroCopy }) {
       <div className="lp-phone" role="group" aria-labelledby="lp-phone-title">
         <div className="lp-phone-head">
           <span className="lp-avatar" aria-hidden="true">
-            {copy.isArabic ? "د" : "D"}
+            <LogoMark size={40} />
           </span>
           <div className="lp-who">
             <strong id="lp-phone-title">{copy.phoneTitle}</strong>

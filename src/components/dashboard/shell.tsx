@@ -1,9 +1,14 @@
-import { Scissors, Stethoscope } from "lucide-react";
+import { Globe, Scissors, Stethoscope } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { Logo } from "@/components/brand/logo";
+import { Link } from "@/i18n/navigation";
 import { navFor } from "@/lib/auth/roles";
 import type { SessionContext } from "@/lib/auth/session";
 import { NavLinks } from "./nav-links";
 import { UserMenu } from "./user-menu";
+
+const mainSiteClass =
+  "inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-medium text-cobalt-deep underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 export async function DashboardShell({
   session,
@@ -35,28 +40,28 @@ export async function DashboardShell({
       </a>
 
       <aside className="hidden border-e border-line bg-paper lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:gap-6 lg:p-4">
-        <div className="flex items-center gap-2 px-2 pt-2">
-          <span
-            aria-hidden
-            className="grid size-9 place-items-center rounded-[12px_12px_12px_4px] bg-saffron font-heading text-xl font-bold leading-none text-ink"
-          >
-            د
-          </span>
-          <span className="font-heading text-xl font-bold text-ink">{t("brand")}</span>
+        <div className="px-2 pt-2">
+          <Logo href="/dashboard" size={36} className="rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" />
         </div>
         <NavLinks items={items} label={t("navLabel")} variant="rail" />
+        <Link href="/" className={`${mainSiteClass} mt-auto`}>
+          <Globe className="size-4" aria-hidden />
+          {t("mainSite")}
+        </Link>
       </aside>
 
       <div className="flex min-w-0 flex-col">
         <header className="m-topbar sticky top-0 z-30 bg-cobalt text-white">
           <div className="flex min-h-16 items-center gap-3 px-4 sm:px-6">
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              <span
-                aria-hidden
-                className="grid size-9 shrink-0 place-items-center rounded-[12px_12px_12px_4px] bg-saffron font-heading text-xl font-bold leading-none text-ink lg:hidden"
-              >
-                د
-              </span>
+              <Logo
+                href="/dashboard"
+                size={36}
+                tone="mono-light"
+                showWordmark={false}
+                label={t("brand")}
+                className="shrink-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:hidden"
+              />
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 font-heading text-base font-semibold leading-tight">
                   <KindIcon className="size-4 shrink-0 text-saffron" aria-hidden />
@@ -79,6 +84,12 @@ export async function DashboardShell({
         <main id="main" className="min-w-0 flex-1 px-4 py-6 sm:px-6" tabIndex={-1}>
           {children}
         </main>
+        <footer className="border-t border-line px-4 py-2 sm:px-6 lg:hidden">
+          <Link href="/" className={mainSiteClass}>
+            <Globe className="size-4" aria-hidden />
+            {t("mainSite")}
+          </Link>
+        </footer>
       </div>
     </div>
   );

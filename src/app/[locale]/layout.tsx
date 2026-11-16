@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic, Readex_Pro } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeDir, routing } from "@/i18n/routing";
 import { NavProgress } from "@/components/motion/nav-progress";
+import { LOGO_COLORS } from "@/lib/brand/logo-geometry";
 import { siteUrl } from "@/lib/seo/site";
 import "../globals.css";
 
@@ -20,6 +21,8 @@ const plexArabic = IBM_Plex_Sans_Arabic({
   weight: ["400", "500", "600", "700"],
   display: "swap",
 });
+
+export const viewport: Viewport = { themeColor: LOGO_COLORS.cobalt };
 
 type Props = {
   children: React.ReactNode;

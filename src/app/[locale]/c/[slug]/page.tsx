@@ -8,6 +8,7 @@ import { BookingFlow } from "@/components/booking/booking-flow";
 import { ChatWidget } from "@/components/chat/chat-widget";
 import { ClinicHeader } from "@/components/booking/clinic-header";
 import { ClinicFacts } from "@/components/booking/clinic-facts";
+import { PoweredBy } from "@/components/brand/powered-by";
 import { buildClinicFacts } from "@/lib/geo/clinic-facts";
 import { routing } from "@/i18n/routing";
 import { buildClinicJsonLd, serializeJsonLd } from "@/lib/seo/jsonld";
@@ -111,6 +112,7 @@ export default async function ClinicPage({ params }: Props) {
       <ClinicFacts
         facts={buildClinicFacts(tenant, services, hours, locale as "ar" | "en")}
       />
+      <PoweredBy className="pb-20 lg:pb-0" />
     </div>
   );
 }

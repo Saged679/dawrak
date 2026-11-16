@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { PoweredBy } from "@/components/brand/powered-by";
 import { Link } from "@/i18n/navigation";
 import { brandStyleVars } from "@/lib/db/brand";
 import type { Loc } from "@/components/booking/dates";
@@ -34,6 +35,7 @@ export function PortalShell({
         </div>
       </header>
       <main className="mx-auto w-full min-w-0 max-w-2xl flex-1 px-4 py-6 sm:px-6">{children}</main>
+      <PoweredBy />
     </div>
   );
 }

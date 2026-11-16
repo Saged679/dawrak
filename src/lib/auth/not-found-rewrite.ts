@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import ar from "../../../messages/ar.json";
 import en from "../../../messages/en.json";
 import { localeDir, routing } from "@/i18n/routing";
+import { logoSvg } from "@/lib/brand/logo-svg";
 
 const COPY = { ar: ar.Errors, en: en.Errors } as const;
 
@@ -24,7 +25,7 @@ main{margin:0 auto;width:100%;max-width:42rem;flex:1;display:flex;flex-direction
 p.c{margin:0;font-size:.875rem;font-weight:600;color:#1b37a3}.r{width:3rem;height:.25rem;border-radius:9999px;background:#f2a93b}
 h1{margin:0;font-size:1.875rem;font-weight:600}p.b{margin:0;font-size:1.125rem;color:#4a5675;max-width:40em}
 a{display:inline-flex;min-height:2.75rem;align-items:center;border-radius:.5rem;background:#2549d1;color:#fff;padding:.5rem 1.25rem;font-weight:500;text-decoration:none;margin-top:.5rem}a:focus-visible{outline:2px solid #2549d1;outline-offset:2px}</style></head>
-<body><main><p class="c" dir="ltr">404</p><span class="r" aria-hidden="true"></span><h1>${esc(t.notFoundTitle)}</h1><p class="b">${esc(t.notFoundBody)}</p><a href="/${l}">${esc(t.home)}</a></main></body></html>`;
+<body><main>${logoSvg({ size: 56, dir: localeDir[l] })}<p class="c" dir="ltr">404</p><span class="r" aria-hidden="true"></span><h1>${esc(t.notFoundTitle)}</h1><p class="b">${esc(t.notFoundBody)}</p><a href="/${l}">${esc(t.home)}</a></main></body></html>`;
   const headers = new Headers({
     "content-type": "text/html; charset=utf-8",
     "content-language": l,

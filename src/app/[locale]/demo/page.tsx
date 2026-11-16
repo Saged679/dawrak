@@ -3,6 +3,7 @@ import { Info, Scissors, Stethoscope } from "lucide-react";
 import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { Logo } from "@/components/brand/logo";
 import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { enterDemo } from "@/lib/auth/actions";
@@ -41,7 +42,17 @@ export default async function DemoPage({ params, searchParams }: Props) {
   const t = await getTranslations("Demo");
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <Logo size={36} className="rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring" />
+        <Link
+          href="/"
+          data-testid="back-home"
+          className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-medium text-cobalt underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+        >
+          {t("backHome")}
+        </Link>
+      </div>
       <header className="flex flex-col gap-3">
         <h1 className="font-heading text-2xl font-semibold sm:text-4xl">{t("title")}</h1>
         <p className="max-w-[40em] text-lg text-muted-foreground">{t("lead")}</p>

@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import type { Locale } from "@/i18n/routing";
+import { LOGO_COLORS } from "@/lib/brand/logo-geometry";
+import { logoDataUri } from "@/lib/brand/logo-svg";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
@@ -71,28 +73,21 @@ export async function renderOgImage({ locale, brand, title, subtitle, badge }: O
           flexDirection: "column",
           justifyContent: "space-between",
           padding: 72,
-          background: "#F6F1E7",
-          color: "#17233B",
+          background: LOGO_COLORS.mist,
+          color: LOGO_COLORS.ink,
           fontFamily: "Plex",
           direction: rtl ? "rtl" : "ltr",
         }}
       >
         <div style={{ display: "flex", flexDirection: rtl ? "row-reverse" : "row", alignItems: "center", gap: 20 }}>
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 18,
-              background: "#1F3FBF",
-              color: "#fff",
-              fontSize: 44,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {rtl ? "د" : "D"}
-          </div>
+          {/* Satori: SVG mask is not relied on; the tile variant paints the dot gap in the card colour. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoDataUri({ size: 80, dir: rtl ? "rtl" : "ltr", tile: { bg: LOGO_COLORS.mist, scale: 1 } })}
+            width={80}
+            height={80}
+            alt=""
+          />
           <div style={{ fontSize: 44, display: "flex" }}>{brand}</div>
           {badge ? (
             <div
@@ -101,8 +96,8 @@ export async function renderOgImage({ locale, brand, title, subtitle, badge }: O
                 fontSize: 28,
                 padding: "6px 20px",
                 borderRadius: 999,
-                background: "#F4B13E",
-                color: "#17233B",
+                background: LOGO_COLORS.saffron,
+                color: LOGO_COLORS.ink,
               }}
             >
               <Text text={badge} rtl={rtl} size={28} />
@@ -113,7 +108,7 @@ export async function renderOgImage({ locale, brand, title, subtitle, badge }: O
           <Text text={title} rtl={rtl} size={titleSize} />
           <Text text={subtitle} rtl={rtl} size={36} color="#4A5568" />
         </div>
-        <div style={{ display: "flex", height: 12, width: 240, borderRadius: 6, background: "#F4B13E", alignSelf: rtl ? "flex-end" : "flex-start" }} />
+        <div style={{ display: "flex", height: 12, width: 240, borderRadius: 6, background: LOGO_COLORS.saffron, alignSelf: rtl ? "flex-end" : "flex-start" }} />
       </div>
     ),
     { ...OG_SIZE, fonts },

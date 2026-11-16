@@ -8,6 +8,9 @@
     "body": "The link you opened is not valid, or the clinic or salon is no longer open for booking.",
     "home": "Back to the home page"
   },
+  "Brand": {
+    "poweredBy": "Powered by Dawrak"
+  },
   "Errors": {
     "notFoundTitle": "We couldn't find this page",
     "notFoundBody": "The link is wrong or the page no longer exists.",
@@ -202,12 +205,14 @@
   "Auth": {
     "metaTitle": "Sign in | Dawrak",
     "title": "Sign in to your dashboard",
-    "lead": "For clinic and salon staff. Customers book from the public page and do not need an account.",
     "email": "Email",
     "password": "Password",
     "submit": "Sign in",
     "submitting": "Signing in...",
-    "demoLink": "Just looking? Open the demo",
+    "backHome": "Back to home",
+    "noSignup": "Accounts are for clinic and salon owners and their staff. Customers book from the public page without an account.",
+    "demoPrompt": "Want to look around? Open the demo.",
+    "tryDemo": "Try the demo",
     "errors": {
       "invalid": "Enter a valid email and your password.",
       "credentials": "The email or password is not correct.",
@@ -219,7 +224,7 @@
     "metaTitle": "Demo | Dawrak",
     "title": "Try the dashboard with demo data",
     "lead": "Pick a role to see what each person on the team can do. No sign-up and nothing to type.",
-    "notice": "Demo data. Each visit gets its own temporary account that is deleted after 24 hours. The business itself is read-mostly: you can book, move and update appointments and add knowledge, but the seeded services, doctors and hours are locked.",
+    "notice": "Demo data. Each visit gets its own temporary account that is deleted after 6 hours. The business itself is read-mostly: you can book, move and update appointments and add knowledge, but the seeded services, doctors and hours are locked.",
     "clinicTitle": "Nabd Dental Clinic",
     "clinicLead": "A dental clinic with three doctors.",
     "salonTitle": "Lamsa Ladies Salon",
@@ -241,11 +246,13 @@
       "busy": "The demo is busy right now. Please try again later."
     },
     "login": "I have an account",
+    "backHome": "Back to home",
     "back": "Back to the home page"
   },
   "Dash": {
     "brand": "Dawrak",
     "skip": "Skip to content",
+    "mainSite": "Main website",
     "navLabel": "Main navigation",
     "nav": {
       "overview": "Overview",
@@ -806,6 +813,7 @@
     "emptyBody": "Book an appointment with an e-mail address, or ask for a link from the appointments page of a demo clinic, and the e-mail shows up here.",
     "to": "To",
     "backToDemo": "Back to the demo page",
+    "backHome": "Back to home",
     "waiting": "Waiting for your email…",
     "noneYet": "No emails yet",
     "found": "Your email arrived",
@@ -818,7 +826,6 @@
     },
     "nav": {
       "brand": "Dawrak",
-      "home": "Dawrak, home",
       "skip": "Skip to content",
       "sections": "Page sections",
       "how": "How booking works",

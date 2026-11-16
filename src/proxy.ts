@@ -74,6 +74,7 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip API routes, Next internals and files with an extension.
-  matcher: ["/((?!api|trpc|_next|_vercel|.*\\..*).*)"],
+  // Skip API routes, Next internals, files with an extension (/icon.svg, /favicon.ico, /manifest.webmanifest,
+  // /icon-512.png ...) and the extension-less generated /apple-icon (no locale redirect, no auth).
+  matcher: ["/((?!api|trpc|_next|_vercel|apple-icon|.*\\..*).*)"],
 };

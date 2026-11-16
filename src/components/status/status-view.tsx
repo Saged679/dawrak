@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { LogoMark } from "@/components/brand/logo";
 
 export const statusLinkClass =
   "inline-flex min-h-11 items-center rounded-lg px-4 py-2 font-medium text-cobalt underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
@@ -9,6 +10,7 @@ export const statusButtonClass =
 export function StatusView({ code, title, body, children }: { code: string; title: string; body: string; children: ReactNode }) {
   return (
     <main className="m-status mx-auto flex w-full max-w-2xl flex-1 flex-col items-start justify-center gap-4 px-6 py-16">
+      <LogoMark size={56} />
       <p className="font-heading text-sm font-semibold tracking-wide text-cobalt-deep" dir="ltr">
         {code}
       </p>

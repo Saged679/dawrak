@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
 import { CheckCircle2, Hourglass, TriangleAlert, XCircle } from "lucide-react";
+import { PoweredBy } from "@/components/brand/powered-by";
 import { Link } from "@/i18n/navigation";
 import { brandStyleVars } from "@/lib/db/brand";
 import {
@@ -41,6 +42,7 @@ export function PayShell({
         </div>
       </header>
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:px-6">{children}</main>
+      <PoweredBy />
     </div>
   );
 }

@@ -29,7 +29,13 @@ export function buildLandingJsonLd(args: {
   return {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "Organization", "@id": `${args.base}/#org`, name: args.name, url: args.base },
+      {
+        "@type": "Organization",
+        "@id": `${args.base}/#org`,
+        name: args.name,
+        url: args.base,
+        logo: `${args.base}/icon-512.png`,
+      },
       {
         "@type": "SoftwareApplication",
         "@id": `${url}#app`,

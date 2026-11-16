@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { formatGregorian, formatHijri, type Loc } from "@/components/booking/dates";
 import { Link } from "@/i18n/navigation";
+import { LogoMark } from "@/components/brand/logo";
 import { CountUp } from "@/components/motion/count-up";
 import { ScrollReveal } from "@/components/motion/scroll-reveal";
 import { HeroDemo, type HeroCopy } from "./hero-demo";
@@ -87,9 +88,7 @@ export async function LandingPage({ locale }: { locale: Loc }) {
       <header className="lp-topbar">
         <div className="lp-wrap lp-topbar-in">
           <Link className="lp-brand" href="/">
-            <span className="lp-mark" aria-hidden="true">
-              {isAr ? "د" : "D"}
-            </span>
+            <LogoMark size={36} tone="mono-light" />
             <span className="lp-brand-name">{t("nav.brand")}</span>
           </Link>
           <nav aria-label={t("nav.sections")} className="lp-nav-wrap" style={{ display: "contents" }}>
@@ -420,10 +419,10 @@ export async function LandingPage({ locale }: { locale: Loc }) {
 
       <footer className="lp-foot">
         <div className="lp-wrap lp-foot-in">
-          <div className="lp-brand">
-            <span className="lp-mark" aria-hidden="true">{isAr ? "د" : "D"}</span>
+          <Link className="lp-brand" href="/">
+            <LogoMark size={36} />
             <span className="lp-brand-name">{t("nav.brand")}</span>
-          </div>
+          </Link>
           <p>{t("foot.tag")}</p>
           <nav aria-label={t("foot.label")}>
             <ul>
